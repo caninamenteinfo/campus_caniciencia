@@ -18,7 +18,11 @@ def cargar_usuarios_desde_db():
         info_llave = st.secrets["gspread_json"]["clave"]
         cred_dict = json.loads(info_llave)
         
-        scope = ["https://www.googleapis.com/auth/spreadsheets"]
+        # Añadimos los dos permisos: Sheets y Drive
+        scope = [
+            "https://www.googleapis.com/auth/spreadsheets",
+            "https://www.googleapis.com/auth/drive"
+        ]
         creds = Credentials.from_service_account_info(cred_dict, scopes=scope)
         cliente = gspread.authorize(creds)
         
@@ -220,5 +224,6 @@ else:
                     st.success(calif_res.text)
                     st.session_state["db_actividad"].append({"Fecha": datetime.now().strftime("%d/%m %H:%M"), "Alumno": st.session_state["user"], "Asignatura": f"{tema} ({subtema})", "Actividad": "Test", "Resultado": calif_res.text})
                     st.session_state["ex_on"] = False
+
 
 
