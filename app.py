@@ -124,7 +124,7 @@ else:
     u_info = st.session_state["usuarios"][st.session_state["user"]]
 
     # --- VISTA ADMIN ---
-    if u_info["rol"] == "Admin":
+    if u_info["rol"].strip().lower() == "admin":
         st.title("🚀 Panel Docente")
         t1, t2, t3 = st.tabs(["📊 EXPEDIENTES", "👥 USUARIOS", "📖 MATERIAS"])
         with t1:
@@ -224,6 +224,7 @@ else:
                     st.success(calif_res.text)
                     st.session_state["db_actividad"].append({"Fecha": datetime.now().strftime("%d/%m %H:%M"), "Alumno": st.session_state["user"], "Asignatura": f"{tema} ({subtema})", "Actividad": "Test", "Resultado": calif_res.text})
                     st.session_state["ex_on"] = False
+
 
 
 
