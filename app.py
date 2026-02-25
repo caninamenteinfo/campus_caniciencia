@@ -33,18 +33,28 @@ if "api_key_pers" not in st.session_state:
 # 2. BARRA LATERAL
 with st.sidebar:
     st.header("🐾 Panel de Control")
-    api_input = st.text_input("Gemini API Key:", value=st.session_state["api_key_pers"], type="password")
     
-    chat_model = None
-    if api_input:
-        st.session_state["api_key_pers"] = api_input
+    # Intentamos leer de los Secrets primero
+    secret_key = st.secrets.get("GEMINI_API_KEY", "")
+    
+    # Si hay secreto, lo usamos y ocultamos el input
+    if secret_key:
+        st.session_state["api_key_pers"] = secret_key
+        chat_model = None
         try:
-            genai.configure(api_key=api_input)
+            genai.configure(api_key=secret_key)
+            # ... resto de la lógica de conexión ...
             available_models = [m.name for m in genai.list_models() if 'generateContent' in m.supported_generation_methods]
             nombre_final = next((m for m in available_models if "1.5-flash" in m), available_models[0])
             chat_model = genai.GenerativeModel(nombre_final)
-            st.success("IA Conectada")
-        except: st.error("Error API")
+            st.success("IA Conectada ✅")
+        except:
+            st.error("Error con la clave de los Secrets")
+    else:
+        # Si NO hay secreto, mostramos el cuadro (solo para ti en local)
+        api_input = st.text_input("Gemini API Key:", type="password")
+        if api_input:
+            st.session_state["api_key_pers"] = api_input
 
     if "user" in st.session_state:
         u_info = st.session_state["usuarios"][st.session_state["user"]]
@@ -188,3 +198,4 @@ else:
                     st.success(calif_res.text)
                     st.session_state["db_actividad"].append({"Fecha": datetime.now().strftime("%d/%m %H:%M"), "Alumno": st.session_state["user"], "Asignatura": f"{tema} ({subtema})", "Actividad": "Test", "Resultado": calif_res.text})
                     st.session_state["ex_on"] = False
+
