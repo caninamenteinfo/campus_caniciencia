@@ -131,7 +131,7 @@ else:
             if st.session_state["db_actividad"]:
                 st.dataframe(pd.DataFrame(st.session_state["db_actividad"]), use_container_width=True, hide_index=True)
         with t2:
-            st.table(pd.DataFrame([{"User": k, "Pass": v["password"]} for k,v in st.session_state["usuarios"].items()]))
+            st.table(pd.DataFrame([{"User": k, "Password": v["password"]} for k,v in st.session_state["usuarios"].items()]))
             nu = st.text_input("Usuario:").lower(); np = st.text_input("Clave:")
             if st.button("Actualizar"):
                 if nu and np: st.session_state["usuarios"][nu] = {"rol": "Alumno", "password": np}; st.rerun()
@@ -224,6 +224,7 @@ else:
                     st.success(calif_res.text)
                     st.session_state["db_actividad"].append({"Fecha": datetime.now().strftime("%d/%m %H:%M"), "Alumno": st.session_state["user"], "Asignatura": f"{tema} ({subtema})", "Actividad": "Test", "Resultado": calif_res.text})
                     st.session_state["ex_on"] = False
+
 
 
 
