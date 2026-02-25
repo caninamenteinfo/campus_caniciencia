@@ -4,17 +4,39 @@ from datetime import datetime
 import random
 import google.generativeai as genai
 from pypdf import PdfReader 
+import gspread
+from google.oauth2.service_account import Credentials
+import json
 
 # 1. CONFIGURACIÓN E INICIALIZACIÓN
 st.set_page_config(page_title="CaniCiencia PRO", layout="wide")
+# --- FUNCIÓN PARA CONECTAR CON GOOGLE SHEETS ---
+def cargar_usuarios_desde_db():
+    try:
+        # Extraemos la llave que pegaste en Secrets (la que minificamos)
+        import json
+        info_llave = st.secrets["gspread_json"]["clave"]
+        cred_dict = json.loads(info_llave)
+        
+        scope = ["https://www.googleapis.com/auth/spreadsheets"]
+        creds = Credentials.from_service_account_info(cred_dict, scopes=scope)
+        cliente = gspread.authorize(creds)
+        
+        # Abrimos tu Excel y la pestaña 'usuarios'
+        libro = cliente.open("BD_Campus_CaniCiencia")
+        hoja = libro.worksheet("usuarios")
+        
+        datos = hoja.get_all_records()
+        # Transformamos las filas del Excel al formato de la app
+        return {str(f["Usuario"]): {"password": str(f["Password"]), "rol": f["Rol"]} for f in datos}
+    except Exception as e:
+        st.error(f"Error en base de datos: {e}")
+        # Si falla, te deja entrar a ti como admin por seguridad
+        return {"ernest": {"password": "cani2026", "rol": "admin"}}
 
+# Cargamos los usuarios reales del Excel al iniciar la sesión
 if "usuarios" not in st.session_state:
-    st.session_state["usuarios"] = {
-        "ernest": {"rol": "Admin", "pass": "cani2026"},
-        "lucas": {"rol": "Alumno", "pass": "perro1"},
-        "marta": {"rol": "Alumno", "pass": "perro2"},
-        "pablo": {"rol": "Alumno", "pass": "perro4"}
-    }
+    st.session_state["usuarios"] = cargar_usuarios_desde_db()
 
 if "asignaturas_data" not in st.session_state:
     st.session_state["asignaturas_data"] = {
@@ -198,4 +220,5 @@ else:
                     st.success(calif_res.text)
                     st.session_state["db_actividad"].append({"Fecha": datetime.now().strftime("%d/%m %H:%M"), "Alumno": st.session_state["user"], "Asignatura": f"{tema} ({subtema})", "Actividad": "Test", "Resultado": calif_res.text})
                     st.session_state["ex_on"] = False
+
 
