@@ -142,11 +142,11 @@ if "user" not in st.session_state:
         else: st.error("Credenciales incorrectas")
 else:
    u_actual = st.session_state.get("usuario", "ernest")
-   u_info = st.session_state["usuarios"].get(u_actual, {"rol": "admin"})
-
+    u_info = st.session_state["usuarios"].get(u_actual, {"rol": "admin"})
+       
    # --- VISTA ADMIN ---
-   if u_info["rol"].strip().lower() == "admin":
-        st.info(f"Sesión iniciada como: {st.session_state.get('usuario', 'Admin')} (ADMIN)")
+if u_info["rol"].strip().lower() == "admin":
+           st.info(f"Sesión iniciada como: {st.session_state.get('usuario', 'Admin')} (ADMIN)")
         
         t1, t2, t3 = st.tabs(["📊 EXPEDIENTES", "👥 USUARIOS", "📖 MATERIAS"])
         
@@ -249,6 +249,7 @@ else:
             if prompt := st.chat_input("Pregunta lo que quieras a tu tutor..."):
                 st.chat_message("user").write(prompt)
                 # Aquí la IA responde usando el PDF extra o su conocimiento
+
 
 
 
