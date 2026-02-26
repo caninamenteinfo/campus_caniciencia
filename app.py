@@ -148,7 +148,7 @@ else:
             st.info(f"Sesión iniciada como: {u_actual} (ADMIN)")
             t1, t2, t3 = st.tabs(["📊 EXPEDIENTES", "👥 USUARIOS", "📖 MATERIAS"])
 			        
-		   with t1:
+           with t1:
 		   if st.session_state.get("db_actividad"):
 			                st.subheader("Registros de Actividad")
 			                st.dataframe(st.session_state["db_actividad"])
@@ -247,6 +247,7 @@ else:
             if prompt := st.chat_input("Pregunta lo que quieras a tu tutor..."):
                 st.chat_message("user").write(prompt)
                 # Aquí la IA responde usando el PDF extra o su conocimiento
+
 
 
 
