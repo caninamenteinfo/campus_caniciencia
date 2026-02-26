@@ -149,14 +149,14 @@ else:
         t1, t2, t3 = st.tabs(["📊 EXPEDIENTES", "👥 USUARIOS", "📖 MATERIAS"])
 			        
         with t1:
-           if st.session_state.get("db_actividad"):
+            if st.session_state.get("db_actividad"):
 			                st.subheader("Registros de Actividad")
 			                st.dataframe(st.session_state["db_actividad"])
-                        else:
-			                st.write("No hay actividad registrada aún.")
+            else:
+                st.write("No hay actividad registrada aún.")
 			
-			        with t2:
-			            st.subheader("👥 Gestión de Alumnos")
+        with t2:
+                st.subheader("👥 Gestión de Alumnos")
 			            
 			            with st.expander("➕ Registrar Nuevo Alumno"):
 			                c1, c2 = st.columns(2)
@@ -247,6 +247,7 @@ else:
             if prompt := st.chat_input("Pregunta lo que quieras a tu tutor..."):
                 st.chat_message("user").write(prompt)
                 # Aquí la IA responde usando el PDF extra o su conocimiento
+
 
 
 
