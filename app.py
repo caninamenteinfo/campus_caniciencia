@@ -39,8 +39,16 @@ def cargar_usuarios_desde_db():
         return {"ernest": {"password": "cani2026", "rol": "admin"}}
 
 # Carga inicial al entrar
-if "usuarios" not in st.session_state:
-    st.session_state["usuarios"] = cargar_usuarios_desde_db()
+if "usuario" in st.session_state and st.session_state.get("rol") == "admin":
+    if st.sidebar.button("🔄 Sincronizar Alumnos"):
+        st.session_state["usuarios"] = cargar_usuarios_desde_db()
+        st.rerun()
+# --- Sincronización (Solo visible para Admin) ---
+if st.session_state.get("rol") == "admin":
+    if st.sidebar.button("🔄 Sincronizar Datos"):
+        st.session_state["usuarios"] = cargar_usuarios_desde_db()
+        st.success("Datos actualizados")
+        st.rerun()
 
 # Botón de emergencia por si quieres refrescar los datos del Excel manualmente
 if st.sidebar.button("🔄 Sincronizar Alumnos"):
@@ -204,4 +212,23 @@ else:
             for m in materias:
                 with st.expander(f"📚 {m}"):
                     st.file_uploader(f"Actualizar PDF de {m}", type="pdf", key=f"subir_{m}")
+# --- VISTA ALUMNO ---
+    else:
+        st.title(f"👋 ¡Hola, {st.session_state.get('usuario', 'Alumno')}!")
+        
+        tab_clase, tab_tutor = st.tabs(["📚 Mis Materiales", "🤖 Tutor IA"])
+        
+        with tab_clase:
+            st.subheader("Tus asignaturas")
+            # Esto recupera las materias que definimos en los esquemas guardados
+            for asig in ["Etología Canina", "Técnica de Clicker", "Aromaterapia", "Gestión de Miedos"]:
+                with st.expander(f"📖 {asig}"):
+                    st.write(f"Aquí aparecerán los materiales de {asig}")
+                    # Aquí irá el visualizador de PDF que ya teníamos
+        
+        with tab_tutor:
+            st.chat_message("assistant").write("Hola. Soy tu tutor de CaniCiencia. ¿En qué puedo ayudarte con tus estudios hoy?")
+            if prompt := st.chat_input("Escribe tu duda aquí..."):
+                st.chat_message("user").write(prompt)
+                # Aquí es donde el alumno habla con la IA
 
