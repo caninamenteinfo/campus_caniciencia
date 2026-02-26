@@ -129,7 +129,7 @@ else:
 
     # --- VISTA ADMIN ---
     if u_info["rol"].strip().lower() == "admin":
-        st.info(f"Sesión iniciada como: {st.session_state['usuario']} (ADMIN)")
+        st.info(f"Sesión iniciada como: {st.session_state.get('usuario', 'Admin')} (ADMIN)")
         
         t1, t2, t3 = st.tabs(["📊 EXPEDIENTES", "👥 USUARIOS", "📖 MATERIAS"])
         
@@ -204,3 +204,4 @@ else:
             for m in materias:
                 with st.expander(f"📚 {m}"):
                     st.file_uploader(f"Actualizar PDF de {m}", type="pdf", key=f"subir_{m}")
+
