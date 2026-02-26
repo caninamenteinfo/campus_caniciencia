@@ -159,30 +159,30 @@ else:
 
         st.divider()
         
-                # Lista de alumnos con botones para BORRAR
-                for usuario, info in st.session_state["usuarios"].items():
-                    if info["rol"].lower() == "alumno":
-                        c1, c2, c3 = st.columns([2, 2, 1])
-                        with c1:
-                            st.write(f"👤 **{usuario}**")
-                        with c2:
-                            st.write(f"🔑 {info['password']}")
-                        with c3:
-                            if st.button("🗑️ Borrar", key=f"del_{usuario}"):
-                                import gspread
-                                from google.oauth2.service_account import Credentials
-                                info_llave = st.secrets["gspread_json"]["clave"]
-                                cred_dict = json.loads(info_llave)
-                                scope = ["https://www.googleapis.com/auth/spreadsheets", "https://www.googleapis.com/auth/drive"]
-                                creds = Credentials.from_service_account_info(cred_dict, scopes=scope)
-                                cliente = gspread.authorize(creds)
-                                hoja = cliente.open("BD_Campus_CaniCiencia").worksheet("usuarios")
-                                
-                                # Buscamos la fila y borramos
-                                celda = hoja.find(usuario)
-                                hoja.delete_rows(celda.row)
-                                st.warning(f"Eliminado {usuario}")
-                                st.rerun()
+      # Lista de alumnos con botones para BORRAR
+        for usuario, info in st.session_state["usuarios"].items():
+            if info["rol"].lower() == "alumno":
+                c1, c2, c3 = st.columns([2, 2, 1])
+                with c1:
+                    st.write(f"👤 **{usuario}**")
+                with c2:
+                    st.write(f"🔑 {info['password']}")
+                with c3:
+                    if st.button("🗑️ Borrar", key=f"del_{usuario}"):
+                        import gspread
+                        from google.oauth2.service_account import Credentials
+                        info_llave = st.secrets["gspread_json"]["clave"]
+                        cred_dict = json.loads(info_llave)
+                        scope = ["https://www.googleapis.com/auth/spreadsheets", "https://www.googleapis.com/auth/drive"]
+                        creds = Credentials.from_service_account_info(cred_dict, scopes=scope)
+                        cliente = gspread.authorize(creds)
+                        hoja = cliente.open("BD_Campus_CaniCiencia").worksheet("usuarios")
+                        
+                        # Buscamos la fila y borramos
+                        celda = hoja.find(usuario)
+                        hoja.delete_rows(celda.row)
+                        st.warning(f"Eliminado {usuario}")
+                        st.rerun()
         with t3:
             for asig in list(st.session_state["asignaturas_data"].keys()):
                 data = st.session_state["asignaturas_data"][asig]
@@ -272,6 +272,7 @@ else:
                     st.success(calif_res.text)
                     st.session_state["db_actividad"].append({"Fecha": datetime.now().strftime("%d/%m %H:%M"), "Alumno": st.session_state["user"], "Asignatura": f"{tema} ({subtema})", "Actividad": "Test", "Resultado": calif_res.text})
                     st.session_state["ex_on"] = False
+
 
 
 
