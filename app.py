@@ -130,11 +130,58 @@ else:
         with t1:
             if st.session_state["db_actividad"]:
                 st.dataframe(pd.DataFrame(st.session_state["db_actividad"]), use_container_width=True, hide_index=True)
-        with t2:
-            st.table(pd.DataFrame([{"User": k, "Password": v["password"]} for k,v in st.session_state["usuarios"].items()]))
-            nu = st.text_input("Usuario:").lower(); np = st.text_input("Clave:")
-            if st.button("Actualizar"):
-                if nu and np: st.session_state["usuarios"][nu] = {"rol": "Alumno", "password": np}; st.rerun()
+       st.subheader("👥 Gestión de Alumnos")
+        
+        # Formulario para añadir uno nuevo directamente al Excel
+        with st.expander("➕ Registrar Nuevo Alumno"):
+            col_n1, col_n2 = st.columns(2)
+            with col_n1:
+                nuevo_u = st.text_input("Nombre de usuario", key="new_u").lower()
+            with col_n2:
+                nueva_p = st.text_input("Contraseña inicial", key="new_p")
+            
+            if st.button("Guardar en Excel"):
+                if nuevo_u and nueva_p:
+                    import gspread
+                    from google.oauth2.service_account import Credentials
+                    # Conectamos para escribir
+                    info_llave = st.secrets["gspread_json"]["clave"]
+                    cred_dict = json.loads(info_llave)
+                    scope = ["https://www.googleapis.com/auth/spreadsheets", "https://www.googleapis.com/auth/drive"]
+                    creds = Credentials.from_service_account_info(cred_dict, scopes=scope)
+                    cliente = gspread.authorize(creds)
+                    hoja = cliente.open("BD_Campus_CaniCiencia").worksheet("usuarios")
+                    
+                    hoja.append_row([nuevo_u, nueva_p, "Alumno"])
+                    st.success(f"✅ {nuevo_u} añadido")
+                    st.rerun()
+
+        st.divider()
+
+        # Lista de alumnos con botones para BORRAR
+        for usuario, info in st.session_state["usuarios"].items():
+            if info["rol"].lower() == "alumno":
+                c1, c2, c3 = st.columns([2, 2, 1])
+                with c1:
+                    st.write(f"👤 **{usuario}**")
+                with c2:
+                    st.write(f"🔑 {info['password']}")
+                with c3:
+                    if st.button("🗑️ Borrar", key=f"del_{usuario}"):
+                        import gspread
+                        from google.oauth2.service_account import Credentials
+                        info_llave = st.secrets["gspread_json"]["clave"]
+                        cred_dict = json.loads(info_llave)
+                        scope = ["https://www.googleapis.com/auth/spreadsheets", "https://www.googleapis.com/auth/drive"]
+                        creds = Credentials.from_service_account_info(cred_dict, scopes=scope)
+                        cliente = gspread.authorize(creds)
+                        hoja = cliente.open("BD_Campus_CaniCiencia").worksheet("usuarios")
+                        
+                        # Buscamos la fila y borramos
+                        celda = hoja.find(usuario)
+                        hoja.delete_rows(celda.row)
+                        st.warning(f"Eliminado {usuario}")
+                        st.rerun()
         with t3:
             for asig in list(st.session_state["asignaturas_data"].keys()):
                 data = st.session_state["asignaturas_data"][asig]
@@ -224,6 +271,7 @@ else:
                     st.success(calif_res.text)
                     st.session_state["db_actividad"].append({"Fecha": datetime.now().strftime("%d/%m %H:%M"), "Alumno": st.session_state["user"], "Asignatura": f"{tema} ({subtema})", "Actividad": "Test", "Resultado": calif_res.text})
                     st.session_state["ex_on"] = False
+
 
 
 
