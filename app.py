@@ -160,10 +160,10 @@ else:
 			            
                 with st.expander("➕ Registrar Nuevo Alumno"):
                     c1, c2 = st.columns(2)
-                            with c1:
-			                    nuevo_u = st.text_input("Nombre de Usuario", key="n_u")
-			                with c2:
-			                    nueva_p = st.text_input("Contraseña", type="password", key="n_p")
+                    with c1:
+			            nuevo_u = st.text_input("Nombre de Usuario", key="n_u")
+			        with c2:
+			            nueva_p = st.text_input("Contraseña", type="password", key="n_p")
 			                
 			                if st.button("Guardar Alumno"):
 			                    if nuevo_u and nueva_p:
@@ -247,6 +247,7 @@ else:
             if prompt := st.chat_input("Pregunta lo que quieras a tu tutor..."):
                 st.chat_message("user").write(prompt)
                 # Aquí la IA responde usando el PDF extra o su conocimiento
+
 
 
 
