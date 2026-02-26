@@ -38,9 +38,14 @@ def cargar_usuarios_desde_db():
         # Si falla, te deja entrar a ti como admin por seguridad
         return {"ernest": {"password": "cani2026", "rol": "admin"}}
 
-# Cargamos los usuarios reales del Excel al iniciar la sesión
-st.session_state["usuarios"] = cargar_usuarios_desde_db()
+# Carga inicial al entrar
+if "usuarios" not in st.session_state:
+    st.session_state["usuarios"] = cargar_usuarios_desde_db()
 
+# Botón de emergencia por si quieres refrescar los datos del Excel manualmente
+if st.sidebar.button("🔄 Sincronizar Alumnos"):
+    st.session_state["usuarios"] = cargar_usuarios_desde_db()
+    st.rerun()
 if "asignaturas_data" not in st.session_state:
     st.session_state["asignaturas_data"] = {
         "Etología Canina": {"doc_name": None, "doc_text": "", "modo": "Dual"},
@@ -132,29 +137,29 @@ else:
         with t2:    
             st.subheader("👥 Gestión de Alumnos")
         
-        # Formulario para añadir uno nuevo directamente al Excel
-        with st.expander("➕ Registrar Nuevo Alumno"):
-            col_n1, col_n2 = st.columns(2)
-            with col_n1:
-                nuevo_u = st.text_input("Nombre de usuario", key="new_u").lower()
-            with col_n2:
-                nueva_p = st.text_input("Contraseña inicial", key="new_p")
-            
-            if st.button("Guardar en Excel"):
-                if nuevo_u and nueva_p:
-                    import gspread
-                    from google.oauth2.service_account import Credentials
-                    # Conectamos para escribir
-                    info_llave = st.secrets["gspread_json"]["clave"]
-                    cred_dict = json.loads(info_llave)
-                    scope = ["https://www.googleapis.com/auth/spreadsheets", "https://www.googleapis.com/auth/drive"]
-                    creds = Credentials.from_service_account_info(cred_dict, scopes=scope)
-                    cliente = gspread.authorize(creds)
-                    hoja = cliente.open("BD_Campus_CaniCiencia").worksheet("usuarios")
-                    
-                    hoja.append_row([nuevo_u, nueva_p, "Alumno"])
-                    st.success(f"✅ {nuevo_u} añadido")
-                    st.rerun()
+	        # Formulario para añadir uno nuevo directamente al Excel
+	        with st.expander("➕ Registrar Nuevo Alumno"):
+	            col_n1, col_n2 = st.columns(2)
+	            with col_n1:
+	                nuevo_u = st.text_input("Nombre de usuario", key="new_u").lower()
+	            with col_n2:
+	                nueva_p = st.text_input("Contraseña inicial", key="new_p")
+	            
+	            if st.button("Guardar en Excel"):
+	                if nuevo_u and nueva_p:
+	                    import gspread
+	                    from google.oauth2.service_account import Credentials
+	                    # Conectamos para escribir
+	                    info_llave = st.secrets["gspread_json"]["clave"]
+	                    cred_dict = json.loads(info_llave)
+	                    scope = ["https://www.googleapis.com/auth/spreadsheets", "https://www.googleapis.com/auth/drive"]
+	                    creds = Credentials.from_service_account_info(cred_dict, scopes=scope)
+	                    cliente = gspread.authorize(creds)
+	                    hoja = cliente.open("BD_Campus_CaniCiencia").worksheet("usuarios")
+	                    
+	                    hoja.append_row([nuevo_u, nueva_p, "Alumno"])
+	                    st.success(f"✅ {nuevo_u} añadido")
+	                    st.rerun()
 
             st.divider()
             
@@ -271,6 +276,7 @@ else:
                     st.success(calif_res.text)
                     st.session_state["db_actividad"].append({"Fecha": datetime.now().strftime("%d/%m %H:%M"), "Alumno": st.session_state["user"], "Asignatura": f"{tema} ({subtema})", "Actividad": "Test", "Resultado": calif_res.text})
                     st.session_state["ex_on"] = False
+
 
 
 
