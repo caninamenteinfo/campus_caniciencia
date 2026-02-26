@@ -7,9 +7,23 @@ from pypdf import PdfReader
 import gspread
 from google.oauth2.service_account import Credentials
 import json
-
+st.markdown("""
+    <style>
+    /* Hace que las pestañas se vean grandes y claras en el móvil */
+    .stTabs [data-baseweb="tab-list"] button {
+        font-size: 18px !important;
+        font-weight: bold !important;
+        color: white !important;
+    }
+    /* Resalta la pestaña que tienes seleccionada */
+    .stTabs [aria-selected="true"] {
+        background-color: #4A90E2 !important;
+        border-radius: 5px;
+    }
+    </style>
+""", unsafe_allow_html=True)
 # 1. CONFIGURACIÓN E INICIALIZACIÓN
-st.set_page_config(page_title="CaniCiencia PRO", layout="wide")
+st.set_page_config(page_title="CAMPUS Ernest", layout="wide")
 # --- FUNCIÓN PARA CONECTAR CON GOOGLE SHEETS ---
 def cargar_usuarios_desde_db():
     try:
@@ -38,22 +52,16 @@ def cargar_usuarios_desde_db():
         # Si falla, te deja entrar a ti como admin por seguridad
         return {"ernest": {"password": "cani2026", "rol": "admin"}}
 
-# Carga inicial al entrar
-if "usuario" in st.session_state and st.session_state.get("rol") == "admin":
+# --- CARGA INICIAL (ESTO ES VITAL) ---
+if "usuarios" not in st.session_state:
+    st.session_state["usuarios"] = cargar_usuarios_desde_db()
+
+# --- BOTÓN DE SINCRONIZACIÓN (Solo para ti) ---
+if st.session_state.get("rol") == "admin":
     if st.sidebar.button("🔄 Sincronizar Alumnos"):
         st.session_state["usuarios"] = cargar_usuarios_desde_db()
+        st.sidebar.success("¡Datos actualizados!")
         st.rerun()
-# --- Sincronización (Solo visible para Admin) ---
-if st.session_state.get("rol") == "admin":
-    if st.sidebar.button("🔄 Sincronizar Datos"):
-        st.session_state["usuarios"] = cargar_usuarios_desde_db()
-        st.success("Datos actualizados")
-        st.rerun()
-
-# Botón de emergencia por si quieres refrescar los datos del Excel manualmente
-if st.sidebar.button("🔄 Sincronizar Alumnos"):
-    st.session_state["usuarios"] = cargar_usuarios_desde_db()
-    st.rerun()
 if "asignaturas_data" not in st.session_state:
     st.session_state["asignaturas_data"] = {
         "Etología Canina": {"doc_name": None, "doc_text": "", "modo": "Dual"},
@@ -133,7 +141,8 @@ if "user" not in st.session_state:
             st.rerun()
         else: st.error("Credenciales incorrectas")
 else:
-    u_info = st.session_state["usuarios"][st.session_state["user"]]
+   u_actual = st.session_state.get("usuario", "ernest")
+        u_info = st.session_state["usuarios"].get(u_actual, {"rol": "admin"})
 
     # --- VISTA ADMIN ---
     if u_info["rol"].strip().lower() == "admin":
@@ -212,23 +221,33 @@ else:
             for m in materias:
                 with st.expander(f"📚 {m}"):
                     st.file_uploader(f"Actualizar PDF de {m}", type="pdf", key=f"subir_{m}")
-# --- VISTA ALUMNO ---
+# --- VISTA ALUMNO (ESTUDIO, EXÁMENES Y TUTOR) ---
     else:
         st.title(f"👋 ¡Hola, {st.session_state.get('usuario', 'Alumno')}!")
         
-        tab_clase, tab_tutor = st.tabs(["📚 Mis Materiales", "🤖 Tutor IA"])
+        t_a1, t_a2, t_a3 = st.tabs(["📚 ESTUDIO OFICIAL", "📝 EXÁMENES", "🤖 TUTOR LIBRE"])
         
-        with tab_clase:
-            st.subheader("Tus asignaturas")
-            # Esto recupera las materias que definimos en los esquemas guardados
-            for asig in ["Etología Canina", "Técnica de Clicker", "Aromaterapia", "Gestión de Miedos"]:
-                with st.expander(f"📖 {asig}"):
-                    st.write(f"Aquí aparecerán los materiales de {asig}")
-                    # Aquí irá el visualizador de PDF que ya teníamos
-        
-        with tab_tutor:
-            st.chat_message("assistant").write("Hola. Soy tu tutor de CaniCiencia. ¿En qué puedo ayudarte con tus estudios hoy?")
-            if prompt := st.chat_input("Escribe tu duda aquí..."):
+        with t_a1:
+            st.subheader("📖 Estudio Estricto (Sin IA)")
+            st.info("Aquí estudias el material oficial de forma tradicional.")
+            asig_estudio = st.selectbox("Selecciona Materia para estudiar", ["Etología", "Clicker", "Aromaterapia"])
+            # Lógica para visualizar el PDF oficial sin chat
+            st.write(f"Visualizando material oficial de: {asig_estudio}")
+            # [Aquí va el código del iframe/pdf que ya tenías]
+
+        with t_a2:
+            st.subheader("✍️ Centro de Evaluación")
+            tema_examen = st.text_input("Subtema del examen (ej: Refuerzo positivo)")
+            if st.button("Generar Examen"):
+                st.write(f"Generando examen de {tema_examen}...")
+                # Aquí la IA genera las preguntas y luego las corrige/valora
+            
+        with t_a3:
+            st.subheader("🤖 Tutor IA (Tema Libre)")
+            st.write("Sube cualquier PDF para analizarlo con la IA o haz preguntas libres.")
+            pdf_libre = st.file_uploader("Subir PDF extra", type="pdf", key="libre")
+            if prompt := st.chat_input("Pregunta lo que quieras a tu tutor..."):
                 st.chat_message("user").write(prompt)
-                # Aquí es donde el alumno habla con la IA
+                # Aquí la IA responde usando el PDF extra o su conocimiento
+
 
