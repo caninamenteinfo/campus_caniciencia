@@ -145,82 +145,82 @@ else:
    u_info = st.session_state["usuarios"].get(u_actual, {"rol": "admin"})
        
    # --- VISTA ADMIN ---
-if u_info["rol"].strip().lower() == "admin":
+   if u_info["rol"].strip().lower() == "admin":
            st.info(f"Sesión iniciada como: {st.session_state.get('usuario', 'Admin')} (ADMIN)")
         
-        t1, t2, t3 = st.tabs(["📊 EXPEDIENTES", "👥 USUARIOS", "📖 MATERIAS"])
-        
-        with t1:
-            if st.session_state.get("db_actividad"):
-                st.subheader("Registros de Actividad")
-                st.dataframe(st.session_state["db_actividad"])
-            else:
-                st.write("No hay actividad registrada aún.")
-
-        with t2:
-            st.subheader("👥 Gestión de Alumnos")
-            
-            with st.expander("➕ Registrar Nuevo Alumno"):
-                c1, c2 = st.columns(2)
-                with c1:
-                    nuevo_u = st.text_input("Nombre de Usuario", key="n_u")
-                with c2:
-                    nueva_p = st.text_input("Contraseña", type="password", key="n_p")
-                
-                if st.button("Guardar Alumno"):
-                    if nuevo_u and nueva_p:
-                        try:
-                            import gspread
-                            from google.oauth2.service_account import Credentials
-                            info_llave = st.secrets["gspread_json"]["clave"]
-                            cred_dict = json.loads(info_llave)
-                            scope = ["https://www.googleapis.com/auth/spreadsheets", "https://www.googleapis.com/auth/drive"]
-                            creds = Credentials.from_service_account_info(cred_dict, scopes=scope)
-                            cliente = gspread.authorize(creds)
-                            hoja = cliente.open("BD_Campus_CaniCiencia").worksheet("usuarios")
-                            hoja.append_row([nuevo_u, nueva_p, "alumno"])
-                            st.success(f"Alumno {nuevo_u} registrado con éxito")
-                            st.rerun()
-                        except Exception as e:
-                            st.error(f"Error al guardar: {e}")
-                    else:
-                        st.warning("Rellena ambos campos")
-
-            st.divider()
-
-            for usuario, info in st.session_state["usuarios"].items():
-                if info["rol"].lower() == "alumno":
-                    c1, c2, c3 = st.columns([2, 2, 1])
-                    with c1:
-                        st.write(f"👤 **{usuario}**")
-                    with c2:
-                        st.write(f"🔑 {info['password']}")
-                    with c3:
-                        if st.button("🗑️", key=f"del_{usuario}"):
-                            try:
-                                import gspread
-                                from google.oauth2.service_account import Credentials
-                                info_llave = st.secrets["gspread_json"]["clave"]
-                                cred_dict = json.loads(info_llave)
-                                scope = ["https://www.googleapis.com/auth/spreadsheets", "https://www.googleapis.com/auth/drive"]
-                                creds = Credentials.from_service_account_info(cred_dict, scopes=scope)
-                                cliente = gspread.authorize(creds)
-                                hoja = cliente.open("BD_Campus_CaniCiencia").worksheet("usuarios")
-                                celda = hoja.find(usuario)
-                                hoja.delete_rows(celda.row)
-                                st.warning(f"Eliminado {usuario}")
-                                st.rerun()
-                            except:
-                                st.error("No se pudo borrar")
-
-        with t3:
-            st.subheader("📖 Gestión de Materias")
-            st.info("Configura aquí los materiales de estudio.")
-            # Este bloque es expansible para cada materia
-            materias = ["Materia 1", "Materia 2", "Materia 3"]
-            for m in materias:
-                with st.expander(f"📚 {m}"):
-                    st.file_uploader(f"Actualizar PDF de {m}", type="pdf", key=f"subir_{m}")
+			        t1, t2, t3 = st.tabs(["📊 EXPEDIENTES", "👥 USUARIOS", "📖 MATERIAS"])
+			        
+			        with t1:
+			            if st.session_state.get("db_actividad"):
+			                st.subheader("Registros de Actividad")
+			                st.dataframe(st.session_state["db_actividad"])
+			            else:
+			                st.write("No hay actividad registrada aún.")
+			
+			        with t2:
+			            st.subheader("👥 Gestión de Alumnos")
+			            
+			            with st.expander("➕ Registrar Nuevo Alumno"):
+			                c1, c2 = st.columns(2)
+			                with c1:
+			                    nuevo_u = st.text_input("Nombre de Usuario", key="n_u")
+			                with c2:
+			                    nueva_p = st.text_input("Contraseña", type="password", key="n_p")
+			                
+			                if st.button("Guardar Alumno"):
+			                    if nuevo_u and nueva_p:
+			                        try:
+			                            import gspread
+			                            from google.oauth2.service_account import Credentials
+			                            info_llave = st.secrets["gspread_json"]["clave"]
+			                            cred_dict = json.loads(info_llave)
+			                            scope = ["https://www.googleapis.com/auth/spreadsheets", "https://www.googleapis.com/auth/drive"]
+			                            creds = Credentials.from_service_account_info(cred_dict, scopes=scope)
+			                            cliente = gspread.authorize(creds)
+			                            hoja = cliente.open("BD_Campus_CaniCiencia").worksheet("usuarios")
+			                            hoja.append_row([nuevo_u, nueva_p, "alumno"])
+			                            st.success(f"Alumno {nuevo_u} registrado con éxito")
+			                            st.rerun()
+			                        except Exception as e:
+			                            st.error(f"Error al guardar: {e}")
+			                    else:
+			                        st.warning("Rellena ambos campos")
+			
+			            st.divider()
+			
+			            for usuario, info in st.session_state["usuarios"].items():
+			                if info["rol"].lower() == "alumno":
+			                    c1, c2, c3 = st.columns([2, 2, 1])
+			                    with c1:
+			                        st.write(f"👤 **{usuario}**")
+			                    with c2:
+			                        st.write(f"🔑 {info['password']}")
+			                    with c3:
+			                        if st.button("🗑️", key=f"del_{usuario}"):
+			                            try:
+			                                import gspread
+			                                from google.oauth2.service_account import Credentials
+			                                info_llave = st.secrets["gspread_json"]["clave"]
+			                                cred_dict = json.loads(info_llave)
+			                                scope = ["https://www.googleapis.com/auth/spreadsheets", "https://www.googleapis.com/auth/drive"]
+			                                creds = Credentials.from_service_account_info(cred_dict, scopes=scope)
+			                                cliente = gspread.authorize(creds)
+			                                hoja = cliente.open("BD_Campus_CaniCiencia").worksheet("usuarios")
+			                                celda = hoja.find(usuario)
+			                                hoja.delete_rows(celda.row)
+			                                st.warning(f"Eliminado {usuario}")
+			                                st.rerun()
+			                            except:
+			                                st.error("No se pudo borrar")
+			
+			        with t3:
+			            st.subheader("📖 Gestión de Materias")
+			            st.info("Configura aquí los materiales de estudio.")
+			            # Este bloque es expansible para cada materia
+			            materias = ["Materia 1", "Materia 2", "Materia 3"]
+			            for m in materias:
+			                with st.expander(f"📚 {m}"):
+			                    st.file_uploader(f"Actualizar PDF de {m}", type="pdf", key=f"subir_{m}")
 # --- VISTA ALUMNO (ESTUDIO, EXÁMENES Y TUTOR) ---
     else:
         st.title(f"👋 ¡Hola, {st.session_state.get('usuario', 'Alumno')}!")
@@ -249,6 +249,7 @@ if u_info["rol"].strip().lower() == "admin":
             if prompt := st.chat_input("Pregunta lo que quieras a tu tutor..."):
                 st.chat_message("user").write(prompt)
                 # Aquí la IA responde usando el PDF extra o su conocimiento
+
 
 
 
