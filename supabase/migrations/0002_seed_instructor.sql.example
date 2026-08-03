@@ -1,0 +1,11 @@
+-- Plantilla: NO se ejecuta automáticamente (extensión .sql.example).
+--
+-- 1) Crea la cuenta del instructor desde el Dashboard de Supabase:
+--    Authentication → Users → Add user → introduce email + contraseña.
+-- 2) Copia el "User UID" que te muestra y pégalo aquí abajo.
+-- 3) Ejecuta este bloque (ya renombrado a .sql, o pegado directamente)
+--    en el SQL Editor de Supabase para darle rol de instructor.
+
+insert into public.profiles (id, role)
+values ('PEGA-AQUI-EL-USER-UID', 'instructor')
+on conflict (id) do update set role = 'instructor';
