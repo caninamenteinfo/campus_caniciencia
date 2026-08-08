@@ -331,13 +331,22 @@ Vídeo 3 — El Reporte Honesto (Protocolo All-Clear): evalúa la autonomía de 
 Vídeo 4 — Simulacro Doble Ciego (Evaluación Final): integra todo lo aprendido, en un escenario tridimensional, con handler bias controlado y sin conocimiento previo del guía sobre la ubicación del hide, colocado por un tercero.`;
 
 
-/** Divide el texto de un curso en módulos detectando encabezados "MÓDULO N". */
+/**
+ * Divide el texto de un curso en módulos detectando encabezados de nivel
+ * superior: "MÓDULO N", "CAPÍTULO N", "TEMA N" o "UNIDAD N" (cualquiera de
+ * las cuatro palabras, según cómo organice el instructor ese curso). El
+ * "(?!\.\d)" evita confundir un encabezado real ("Capítulo 1") con un
+ * subapartado numerado como "Capítulo 1.1".
+ */
+const HEADING_SOURCE = "^\\s*(?:M[ÓO]DULO|CAP[ÍI]TULO|TEMA|UNIDAD)\\s+\\d+(?!\\.\\d).*$";
+const MODULE_SPLIT_REGEX = new RegExp(`(${HEADING_SOURCE})`, "gim");
+const MODULE_TEST_REGEX = new RegExp(HEADING_SOURCE, "im");
+
 export function parseModules(text: string): CourseModule[] {
-  const regex = /(^\s*M[ÓO]DULO\s+\d+.*$)/gim;
-  const parts = text.split(regex).filter((p) => p.trim().length > 0);
+  const parts = text.split(MODULE_SPLIT_REGEX).filter((p) => p.trim().length > 0);
   const modules: { title: string; content: string }[] = [];
   for (let i = 0; i < parts.length; i++) {
-    if (/^\s*M[ÓO]DULO\s+\d+/i.test(parts[i])) {
+    if (MODULE_TEST_REGEX.test(parts[i])) {
       const heading = parts[i].trim();
       const content = (parts[i + 1] || "").trim();
       modules.push({ title: heading, content: heading + "\n\n" + content });

@@ -221,9 +221,10 @@ function MaterialTab({ course }: { course: Course }) {
           <p className="text-black font-semibold text-sm">Cargar material desde PDF</p>
         </div>
         <p className="text-gray-500 text-sm mb-4">
-          Sube el PDF completo del curso. Si el documento usa encabezados &quot;MÓDULO 1&quot;, &quot;MÓDULO
-          2&quot;…, la app los detecta automáticamente y organiza el contenido en módulos independientes. El texto
-          extraído aparecerá abajo para que lo revises antes de guardarlo.
+          Sube el PDF completo del curso. Si el documento usa encabezados de nivel superior como &quot;MÓDULO
+          1&quot;, &quot;CAPÍTULO 1&quot;, &quot;TEMA 1&quot; o &quot;UNIDAD 1&quot; (seguidos de un número), la
+          app los detecta automáticamente y organiza el contenido en módulos independientes. El texto extraído
+          aparecerá abajo para que lo revises antes de guardarlo.
         </p>
         <div
           onDragOver={(e) => {
