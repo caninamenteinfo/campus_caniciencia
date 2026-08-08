@@ -12,6 +12,8 @@ const eslintConfig = defineConfig([
     "out/**",
     "build/**",
     "next-env.d.ts",
+    // Librería de terceros vendorizada tal cual (pdf.js worker), no es código propio.
+    "public/pdf.worker.min.mjs",
   ]),
 ]);
 

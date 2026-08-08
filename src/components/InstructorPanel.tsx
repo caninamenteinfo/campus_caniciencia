@@ -23,6 +23,7 @@ import {
   Clock,
 } from "lucide-react";
 import { supabaseBrowser } from "@/lib/supabase/browser";
+import { extractPdfTextInBrowser } from "@/lib/pdf-extract-client";
 import { parseModules } from "@/lib/modules";
 import type { Course, CourseEdition, EditionStudent } from "@/types";
 
@@ -111,6 +112,7 @@ function MaterialTab({ course }: { course: Course }) {
   const [savingName, setSavingName] = useState(false);
   const [savingMaterial, setSavingMaterial] = useState(false);
   const [uploading, setUploading] = useState(false);
+  const [uploadProgress, setUploadProgress] = useState<string | null>(null);
   const [uploadError, setUploadError] = useState<string | null>(null);
   const [dragOver, setDragOver] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
@@ -158,17 +160,22 @@ function MaterialTab({ course }: { course: Course }) {
     }
     setUploading(true);
     setUploadError(null);
+    setUploadProgress(null);
     try {
-      const formData = new FormData();
-      formData.append("file", file);
-      const res = await fetch("/api/instructor/pdf-extract", { method: "POST", body: formData });
-      const data = await res.json();
-      if (!res.ok) throw new Error(data.error || "No se ha podido leer el PDF.");
-      setDraft(data.text);
+      const text = await extractPdfTextInBrowser(file, (current, total) =>
+        setUploadProgress(`Leyendo página ${current} de ${total}…`)
+      );
+      if (!text.trim()) {
+        throw new Error("No se ha podido extraer texto de este PDF. Prueba a pegarlo manualmente.");
+      }
+      setDraft(text);
     } catch (err) {
-      setUploadError(err instanceof Error ? err.message : "No se ha podido leer el PDF. Prueba a pegar el texto manualmente.");
+      setUploadError(
+        err instanceof Error ? err.message : "No se ha podido leer el PDF. Prueba a pegar el texto manualmente."
+      );
     } finally {
       setUploading(false);
+      setUploadProgress(null);
     }
   };
 
@@ -241,7 +248,7 @@ function MaterialTab({ course }: { course: Course }) {
           />
           {uploading && (
             <p className="text-blue-600 text-sm mt-3 flex items-center justify-center gap-2">
-              <Loader2 size={14} className="animate-spin" /> Procesando PDF…
+              <Loader2 size={14} className="animate-spin" /> {uploadProgress || "Procesando PDF…"}
             </p>
           )}
         </div>
