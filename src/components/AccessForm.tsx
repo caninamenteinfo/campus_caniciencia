@@ -7,20 +7,19 @@ import { Loader2 } from "lucide-react";
 
 export function AccessForm() {
   const router = useRouter();
-  const [name, setName] = useState("");
   const [code, setCode] = useState("");
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
   const submit = async () => {
-    if (!name.trim() || !code.trim() || loading) return;
+    if (!code.trim() || loading) return;
     setLoading(true);
     setError(null);
     try {
       const res = await fetch("/api/access", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ name: name.trim(), code: code.trim() }),
+        body: JSON.stringify({ code: code.trim() }),
       });
       const data = await res.json();
       if (!res.ok) {
@@ -50,23 +49,18 @@ export function AccessForm() {
           <p className="text-blue-600 font-semibold text-sm tracking-wide mb-1">CANINAMENTE</p>
           <h1 className="text-2xl text-black font-semibold font-heading">Campus</h1>
           <p className="text-gray-500 text-sm mt-2">
-            Introduce tu nombre y el código de acceso que te ha entregado tu instructor.
+            Introduce el código de acceso que te ha entregado tu instructor.
           </p>
         </div>
 
         <div className="space-y-3">
           <input
-            value={name}
-            onChange={(e) => setName(e.target.value)}
-            placeholder="Nombre completo"
-            className="w-full border border-gray-300 rounded-xl px-4 py-3 text-black outline-none focus:border-blue-600"
-          />
-          <input
             value={code}
             onChange={(e) => setCode(e.target.value.toUpperCase())}
             onKeyDown={(e) => e.key === "Enter" && submit()}
             placeholder="Código de acceso"
-            className="w-full border border-gray-300 rounded-xl px-4 py-3 text-black outline-none focus:border-blue-600 tracking-widest uppercase"
+            autoFocus
+            className="w-full border border-gray-300 rounded-xl px-4 py-3 text-black outline-none focus:border-blue-600 tracking-widest uppercase text-center text-lg"
           />
         </div>
 
@@ -74,7 +68,7 @@ export function AccessForm() {
 
         <button
           onClick={submit}
-          disabled={loading || !name.trim() || !code.trim()}
+          disabled={loading || !code.trim()}
           className="w-full mt-5 flex items-center justify-center gap-2 px-5 py-3 rounded-xl text-white font-medium disabled:opacity-50 bg-blue-600"
         >
           {loading && <Loader2 size={18} className="animate-spin" />}

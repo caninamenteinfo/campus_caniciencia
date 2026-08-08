@@ -15,17 +15,26 @@ export interface CourseEdition {
   id: string;
   course_id: string;
   label: string;
-  access_code: string;
   start_date: string;
   end_date: string;
   max_students: number;
   created_at: string;
-  student_count?: number;
+  students: EditionStudent[];
+}
+
+export interface EditionStudent {
+  id: string;
+  edition_id: string;
+  display_name: string;
+  access_code: string;
+  joined_at: string;
+  last_login_at: string | null;
 }
 
 export interface StudentSessionPayload {
   editionId: string;
   courseId: string;
+  studentId: string;
   name: string;
 }
 

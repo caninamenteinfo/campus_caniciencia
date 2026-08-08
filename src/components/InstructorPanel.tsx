@@ -15,10 +15,16 @@ import {
   Plus,
   Check,
   LogOut,
+  UserPlus,
+  Share2,
+  Download,
+  RotateCw,
+  XCircle,
+  Clock,
 } from "lucide-react";
 import { supabaseBrowser } from "@/lib/supabase/browser";
 import { parseModules } from "@/lib/modules";
-import type { Course, CourseEdition } from "@/types";
+import type { Course, CourseEdition, EditionStudent } from "@/types";
 
 type Tab = "material" | "ediciones";
 
@@ -87,7 +93,11 @@ export function InstructorPanel({
           </button>
         </div>
 
-        {tab === "material" ? <MaterialTab course={course} /> : <EditionsTab initialEditions={editions} />}
+        {tab === "material" ? (
+          <MaterialTab course={course} />
+        ) : (
+          <EditionsTab initialEditions={editions} courseName={course.name} />
+        )}
       </div>
     </div>
   );
@@ -266,7 +276,52 @@ function MaterialTab({ course }: { course: Course }) {
   );
 }
 
-function EditionsTab({ initialEditions }: { initialEditions: CourseEdition[] }) {
+function formatLastLogin(iso: string | null): string {
+  if (!iso) return "Todavía no ha entrado";
+  const date = new Date(iso);
+  return `Última entrada: ${date.toLocaleDateString("es-ES")} ${date.toLocaleTimeString("es-ES", {
+    hour: "2-digit",
+    minute: "2-digit",
+  })}`;
+}
+
+function downloadCsv(edition: CourseEdition) {
+  const rows = [["Nombre", "Código"], ...edition.students.map((s) => [s.display_name, s.access_code])];
+  const csv = rows.map((r) => r.map((cell) => `"${cell.replace(/"/g, '""')}"`).join(",")).join("\n");
+  const blob = new Blob([csv], { type: "text/csv;charset=utf-8;" });
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement("a");
+  a.href = url;
+  a.download = `${edition.label || "sesion"}-alumnos.csv`;
+  document.body.appendChild(a);
+  a.click();
+  document.body.removeChild(a);
+  URL.revokeObjectURL(url);
+}
+
+async function shareCode(student: EditionStudent, courseName: string) {
+  const url = window.location.origin;
+  const text = `Hola ${student.display_name}, aquí tienes tu código de acceso a CaninaMente Campus (${courseName}):\n\n${student.access_code}\n\nEntra en: ${url}`;
+  if (navigator.share) {
+    try {
+      await navigator.share({ text });
+    } catch {
+      // el usuario ha cancelado el diálogo de compartir, no hacemos nada
+    }
+  } else {
+    window.location.href = `mailto:?subject=${encodeURIComponent(
+      "Tu acceso a CaninaMente Campus"
+    )}&body=${encodeURIComponent(text)}`;
+  }
+}
+
+function EditionsTab({
+  initialEditions,
+  courseName,
+}: {
+  initialEditions: CourseEdition[];
+  courseName: string;
+}) {
   const [editions, setEditions] = useState(initialEditions);
   const [creating, setCreating] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -274,7 +329,6 @@ function EditionsTab({ initialEditions }: { initialEditions: CourseEdition[] }) 
   const [startDate, setStartDate] = useState("");
   const [endDate, setEndDate] = useState("");
   const [maxStudents, setMaxStudents] = useState(10);
-  const [copiedId, setCopiedId] = useState<string | null>(null);
 
   const refresh = async () => {
     const res = await fetch("/api/instructor/editions");
@@ -296,29 +350,34 @@ function EditionsTab({ initialEditions }: { initialEditions: CourseEdition[] }) 
         body: JSON.stringify({ label, startDate, endDate, maxStudents }),
       });
       const data = await res.json();
-      if (!res.ok) throw new Error(data.error || "No se ha podido crear la edición.");
+      if (!res.ok) throw new Error(data.error || "No se ha podido crear la sesión.");
       setLabel("");
       setStartDate("");
       setEndDate("");
       setMaxStudents(10);
       await refresh();
     } catch (err) {
-      setError(err instanceof Error ? err.message : "Error al crear la edición.");
+      setError(err instanceof Error ? err.message : "Error al crear la sesión.");
     } finally {
       setCreating(false);
     }
   };
 
-  const removeEdition = async (id: string) => {
-    if (!confirm("¿Eliminar esta edición? Los alumnos con ese código perderán el acceso.")) return;
+  const deleteSession = async (id: string) => {
+    if (!confirm("¿Eliminar esta sesión? Todos sus alumnos perderán el acceso.")) return;
     await fetch(`/api/instructor/editions/${id}`, { method: "DELETE" });
     await refresh();
   };
 
-  const copyCode = async (edition: CourseEdition) => {
-    await navigator.clipboard.writeText(edition.access_code);
-    setCopiedId(edition.id);
-    setTimeout(() => setCopiedId(null), 1500);
+  const closeNow = async (edition: CourseEdition) => {
+    if (!confirm(`¿Cerrar "${edition.label}" ahora mismo? Los alumnos perderán el acceso al instante.`)) return;
+    const today = new Date().toISOString().slice(0, 10);
+    await fetch(`/api/instructor/editions/${edition.id}`, {
+      method: "PATCH",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ endDate: today }),
+    });
+    await refresh();
   };
 
   return (
@@ -326,15 +385,15 @@ function EditionsTab({ initialEditions }: { initialEditions: CourseEdition[] }) 
       <div className="bg-white rounded-2xl border border-gray-200 p-5 mb-6">
         <div className="flex items-center gap-2 mb-4">
           <Plus size={16} className="text-blue-600" />
-          <p className="text-black font-semibold text-sm">Nueva edición del curso</p>
+          <p className="text-black font-semibold text-sm">Nueva sesión de curso</p>
         </div>
         <div className="grid sm:grid-cols-2 gap-3 mb-3">
           <div>
-            <label className="text-xs text-gray-500 mb-1 block">Nombre de la edición (opcional)</label>
+            <label className="text-xs text-gray-500 mb-1 block">Nombre de la sesión (opcional)</label>
             <input
               value={label}
               onChange={(e) => setLabel(e.target.value)}
-              placeholder="Ej: Edición Febrero 2026"
+              placeholder="Ej: Grupo Febrero 2026"
               className="w-full border border-gray-300 rounded-xl px-3 py-2 text-sm text-black outline-none focus:border-blue-600"
             />
           </div>
@@ -350,7 +409,7 @@ function EditionsTab({ initialEditions }: { initialEditions: CourseEdition[] }) 
             />
           </div>
           <div>
-            <label className="text-xs text-gray-500 mb-1 block">Fecha de inicio</label>
+            <label className="text-xs text-gray-500 mb-1 block">Fecha de inicio (aprox.)</label>
             <input
               type="date"
               value={startDate}
@@ -359,7 +418,7 @@ function EditionsTab({ initialEditions }: { initialEditions: CourseEdition[] }) 
             />
           </div>
           <div>
-            <label className="text-xs text-gray-500 mb-1 block">Fecha de fin</label>
+            <label className="text-xs text-gray-500 mb-1 block">Fecha de fin (aprox.)</label>
             <input
               type="date"
               value={endDate}
@@ -375,19 +434,19 @@ function EditionsTab({ initialEditions }: { initialEditions: CourseEdition[] }) 
           className="flex items-center gap-2 px-5 py-3 rounded-xl text-white font-medium bg-blue-600 disabled:opacity-60"
         >
           {creating && <Loader2 size={16} className="animate-spin" />}
-          Crear edición y generar código
+          Crear sesión
         </button>
       </div>
 
-      <div className="space-y-3">
+      <div className="space-y-4">
         {editions.length === 0 && (
-          <p className="text-gray-500 text-sm">Todavía no has creado ninguna edición de este curso.</p>
+          <p className="text-gray-500 text-sm">Todavía no has creado ninguna sesión de este curso.</p>
         )}
         {editions.map((edition) => {
           const status = editionStatus(edition);
           return (
             <div key={edition.id} className="bg-white rounded-2xl border border-gray-200 p-5">
-              <div className="flex items-center justify-between flex-wrap gap-2">
+              <div className="flex items-center justify-between flex-wrap gap-2 mb-4">
                 <div>
                   <div className="flex items-center gap-2 mb-1">
                     <p className="text-black font-semibold text-sm">{edition.label}</p>
@@ -399,30 +458,190 @@ function EditionsTab({ initialEditions }: { initialEditions: CourseEdition[] }) 
                     <Calendar size={12} /> {edition.start_date} → {edition.end_date}
                   </p>
                   <p className="text-gray-500 text-xs flex items-center gap-1 mt-0.5">
-                    <Users size={12} /> {edition.student_count ?? 0} / {edition.max_students} alumnos
+                    <Users size={12} /> {edition.students.length} / {edition.max_students} alumnos
                   </p>
                 </div>
-                <div className="flex items-center gap-2">
+                <div className="flex items-center gap-1">
+                  {edition.students.length > 0 && (
+                    <button
+                      onClick={() => downloadCsv(edition)}
+                      className="p-2 rounded-xl text-gray-400 hover:text-blue-600 hover:bg-blue-50"
+                      title="Exportar lista (CSV)"
+                    >
+                      <Download size={16} />
+                    </button>
+                  )}
+                  {status.label !== "Finalizada" && (
+                    <button
+                      onClick={() => closeNow(edition)}
+                      className="p-2 rounded-xl text-gray-400 hover:text-orange-600 hover:bg-orange-50"
+                      title="Cerrar sesión ahora"
+                    >
+                      <XCircle size={16} />
+                    </button>
+                  )}
                   <button
-                    onClick={() => copyCode(edition)}
-                    className="flex items-center gap-2 px-3 py-2 rounded-xl border border-blue-200 text-blue-700 text-sm font-mono font-semibold tracking-widest hover:bg-blue-50"
-                  >
-                    {copiedId === edition.id ? <Check size={14} /> : <Copy size={14} />}
-                    {edition.access_code}
-                  </button>
-                  <button
-                    onClick={() => removeEdition(edition.id)}
+                    onClick={() => deleteSession(edition.id)}
                     className="p-2 rounded-xl text-gray-400 hover:text-red-600 hover:bg-red-50"
-                    title="Eliminar edición"
+                    title="Eliminar sesión"
                   >
                     <Trash2 size={16} />
                   </button>
                 </div>
               </div>
+
+              <StudentList edition={edition} courseName={courseName} onChanged={refresh} />
             </div>
           );
         })}
       </div>
     </>
+  );
+}
+
+function StudentList({
+  edition,
+  courseName,
+  onChanged,
+}: {
+  edition: CourseEdition;
+  courseName: string;
+  onChanged: () => Promise<void>;
+}) {
+  const [newName, setNewName] = useState("");
+  const [adding, setAdding] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+  const [copiedId, setCopiedId] = useState<string | null>(null);
+  const [busyId, setBusyId] = useState<string | null>(null);
+
+  const atCapacity = edition.students.length >= edition.max_students;
+
+  const addStudent = async () => {
+    if (!newName.trim() || adding) return;
+    setAdding(true);
+    setError(null);
+    try {
+      const res = await fetch(`/api/instructor/editions/${edition.id}/students`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ displayName: newName.trim() }),
+      });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error || "No se ha podido dar de alta al alumno.");
+      setNewName("");
+      await onChanged();
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Error al dar de alta al alumno.");
+    } finally {
+      setAdding(false);
+    }
+  };
+
+  const copyCode = async (student: EditionStudent) => {
+    await navigator.clipboard.writeText(student.access_code);
+    setCopiedId(student.id);
+    setTimeout(() => setCopiedId(null), 1500);
+  };
+
+  const regenerate = async (student: EditionStudent) => {
+    if (!confirm(`¿Generar un código nuevo para ${student.display_name}? El anterior dejará de funcionar.`)) return;
+    setBusyId(student.id);
+    try {
+      await fetch(`/api/instructor/students/${student.id}/regenerate`, { method: "POST" });
+      await onChanged();
+    } finally {
+      setBusyId(null);
+    }
+  };
+
+  const remove = async (student: EditionStudent) => {
+    if (!confirm(`¿Dar de baja a ${student.display_name}? Perderá el acceso al instante.`)) return;
+    setBusyId(student.id);
+    try {
+      await fetch(`/api/instructor/students/${student.id}`, { method: "DELETE" });
+      await onChanged();
+    } finally {
+      setBusyId(null);
+    }
+  };
+
+  return (
+    <div>
+      <div className="space-y-2 mb-3">
+        {edition.students.length === 0 && (
+          <p className="text-gray-400 text-xs">Todavía no has dado de alta a ningún alumno en esta sesión.</p>
+        )}
+        {edition.students.map((student) => (
+          <div
+            key={student.id}
+            className="flex items-center justify-between gap-2 flex-wrap border border-gray-100 rounded-xl px-3 py-2"
+          >
+            <div>
+              <p className="text-black text-sm font-medium">{student.display_name}</p>
+              <p className="text-gray-400 text-xs flex items-center gap-1">
+                <Clock size={11} /> {formatLastLogin(student.last_login_at)}
+              </p>
+            </div>
+            <div className="flex items-center gap-1">
+              <button
+                onClick={() => copyCode(student)}
+                className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg border border-blue-200 text-blue-700 text-xs font-mono font-semibold tracking-widest hover:bg-blue-50"
+                title="Copiar código"
+              >
+                {copiedId === student.id ? <Check size={13} /> : <Copy size={13} />}
+                {student.access_code}
+              </button>
+              <button
+                onClick={() => shareCode(student, courseName)}
+                className="p-1.5 rounded-lg text-gray-400 hover:text-blue-600 hover:bg-blue-50"
+                title="Compartir código"
+              >
+                <Share2 size={15} />
+              </button>
+              <button
+                onClick={() => regenerate(student)}
+                disabled={busyId === student.id}
+                className="p-1.5 rounded-lg text-gray-400 hover:text-blue-600 hover:bg-blue-50 disabled:opacity-40"
+                title="Regenerar código"
+              >
+                <RotateCw size={15} />
+              </button>
+              <button
+                onClick={() => remove(student)}
+                disabled={busyId === student.id}
+                className="p-1.5 rounded-lg text-gray-400 hover:text-red-600 hover:bg-red-50 disabled:opacity-40"
+                title="Dar de baja"
+              >
+                <Trash2 size={15} />
+              </button>
+            </div>
+          </div>
+        ))}
+      </div>
+
+      {error && <p className="text-red-600 text-xs mb-2">{error}</p>}
+
+      {atCapacity ? (
+        <p className="text-orange-600 text-xs">Aforo máximo alcanzado para esta sesión.</p>
+      ) : (
+        <div className="flex items-center gap-2">
+          <input
+            value={newName}
+            onChange={(e) => setNewName(e.target.value)}
+            onKeyDown={(e) => e.key === "Enter" && addStudent()}
+            placeholder="Nombre del alumno"
+            className="flex-1 border border-gray-300 rounded-xl px-3 py-2 text-sm text-black outline-none focus:border-blue-600"
+          />
+          <button
+            onClick={addStudent}
+            disabled={adding || !newName.trim()}
+            className="flex items-center gap-1.5 px-3 py-2 rounded-xl text-white text-sm font-medium bg-blue-600 disabled:opacity-60 shrink-0"
+          >
+            {adding ? <Loader2 size={14} className="animate-spin" /> : <UserPlus size={14} />}
+            Añadir
+          </button>
+        </div>
+      )}
+    </div>
   );
 }

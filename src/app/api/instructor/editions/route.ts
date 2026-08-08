@@ -1,7 +1,6 @@
 import { NextResponse } from "next/server";
 import { getInstructorUser } from "@/lib/auth";
 import { getOrCreateCourse, listEditions, createEdition } from "@/lib/courses";
-import { generateAccessCode } from "@/lib/access-code";
 
 export async function GET() {
   const user = await getInstructorUser();
@@ -26,7 +25,7 @@ export async function POST(req: Request) {
   const maxStudents = Number(body?.maxStudents) || 10;
 
   if (!startDate || !endDate) {
-    return NextResponse.json({ error: "Indica la fecha de inicio y de fin de la edición." }, { status: 400 });
+    return NextResponse.json({ error: "Indica la fecha de inicio y de fin de la sesión." }, { status: 400 });
   }
   if (endDate < startDate) {
     return NextResponse.json({ error: "La fecha de fin no puede ser anterior a la de inicio." }, { status: 400 });
@@ -38,8 +37,7 @@ export async function POST(req: Request) {
   const course = await getOrCreateCourse();
   const edition = await createEdition({
     courseId: course.id,
-    label: label || `Edición ${startDate}`,
-    accessCode: generateAccessCode(),
+    label: label || `Sesión ${startDate}`,
     startDate,
     endDate,
     maxStudents,

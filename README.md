@@ -5,8 +5,8 @@ Florida Global University). Los alumnos leen el material de su curso
 organizado por módulos, resuelven dudas con un asistente de IA que responde
 **únicamente** con el contenido del módulo activo, y generan tests de
 autoevaluación de 5 preguntas. El instructor gestiona el material (incluida
-la carga de PDFs) y las ediciones del curso (código de acceso, fechas y
-aforo) desde un panel protegido.
+la carga de PDFs) y las sesiones del curso (alumnos, código individual de
+cada uno, fechas y aforo) desde un panel protegido.
 
 ## Stack
 
@@ -18,12 +18,15 @@ aforo) desde un panel protegido.
 
 ## Cómo funciona el acceso
 
-- **Alumnos**: entran con su nombre + un código de acceso de 8 caracteres
-  que genera el instructor al crear una *edición* del curso. El código solo
-  funciona dentro de la ventana de fechas de esa edición y hasta un aforo
-  máximo (10 por defecto); pasada la fecha de fin, el acceso se cierra
-  automáticamente. La sesión es una cookie firmada (JWT) que caduca en la
-  fecha de fin de la edición.
+- **Alumnos**: el instructor crea una *sesión* de curso (fechas aproximadas
+  de inicio/fin, aforo) y da de alta a cada alumno por su nombre; cada uno
+  recibe su propio código de acceso de 8 caracteres (se puede compartir
+  directamente por WhatsApp/email/SMS desde el panel, o regenerar si se
+  pierde). El alumno solo introduce ese código para entrar — funciona
+  mientras esté dentro de la ventana de fechas de su sesión y no haya sido
+  dado de baja; pasada la fecha de fin (o si el instructor cierra la sesión
+  antes de tiempo), el acceso se cierra automáticamente. La sesión de
+  navegador es una cookie firmada (JWT) que caduca en la fecha de fin.
 - **Instructor**: login real con email + contraseña gestionado por Supabase
   Auth (nada de PIN ni credenciales en el código fuente). Solo las cuentas
   marcadas con rol `instructor` en la tabla `profiles` pueden entrar al panel.

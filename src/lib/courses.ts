@@ -1,7 +1,11 @@
 import "server-only";
 import { supabaseAdmin } from "@/lib/supabase/admin";
 import { DEFAULT_COURSE_NAME, DEFAULT_MATERIAL, parseModules } from "@/lib/modules";
-import type { Course, CourseEdition } from "@/types";
+import { generateAccessCode } from "@/lib/access-code";
+import type { Course, CourseEdition, EditionStudent } from "@/types";
+
+const EDITION_COLUMNS = "id, course_id, label, start_date, end_date, max_students, created_at";
+const STUDENT_COLUMNS = "id, edition_id, display_name, access_code, joined_at, last_login_at";
 
 /**
  * MVP de un solo curso activo a la vez: el instructor puede reemplazar su
@@ -76,88 +80,47 @@ export async function listEditions(courseId: string): Promise<CourseEdition[]> {
   const admin = supabaseAdmin();
   const { data: editions, error } = await admin
     .from("course_editions")
-    .select("id, course_id, label, access_code, start_date, end_date, max_students, created_at")
+    .select(EDITION_COLUMNS)
     .eq("course_id", courseId)
     .order("start_date", { ascending: false });
 
   if (error) throw new Error(error.message);
   if (!editions || editions.length === 0) return [];
 
-  const { data: counts } = await admin
+  const { data: students } = await admin
     .from("edition_students")
-    .select("edition_id")
+    .select(STUDENT_COLUMNS)
     .in(
       "edition_id",
       editions.map((e) => e.id)
-    );
+    )
+    .order("display_name", { ascending: true });
 
-  const countMap = new Map<string, number>();
-  for (const row of counts || []) {
-    countMap.set(row.edition_id, (countMap.get(row.edition_id) || 0) + 1);
+  const studentsByEdition = new Map<string, EditionStudent[]>();
+  for (const s of (students as EditionStudent[]) || []) {
+    const list = studentsByEdition.get(s.edition_id) || [];
+    list.push(s);
+    studentsByEdition.set(s.edition_id, list);
   }
 
-  return editions.map((e) => ({ ...e, student_count: countMap.get(e.id) || 0 }));
-}
-
-export async function getEditionByCode(code: string): Promise<CourseEdition | null> {
-  const admin = supabaseAdmin();
-  const { data } = await admin
-    .from("course_editions")
-    .select("id, course_id, label, access_code, start_date, end_date, max_students, created_at")
-    .eq("access_code", code)
-    .maybeSingle();
-  return (data as CourseEdition) || null;
+  return editions.map((e) => ({ ...e, students: studentsByEdition.get(e.id) || [] }));
 }
 
 export async function getEditionById(id: string): Promise<CourseEdition | null> {
   const admin = supabaseAdmin();
-  const { data } = await admin
-    .from("course_editions")
-    .select("id, course_id, label, access_code, start_date, end_date, max_students, created_at")
-    .eq("id", id)
-    .maybeSingle();
-  return (data as CourseEdition) || null;
-}
-
-export async function countEditionStudents(editionId: string): Promise<number> {
-  const admin = supabaseAdmin();
-  const { count } = await admin
+  const { data } = await admin.from("course_editions").select(EDITION_COLUMNS).eq("id", id).maybeSingle();
+  if (!data) return null;
+  const { data: students } = await admin
     .from("edition_students")
-    .select("id", { count: "exact", head: true })
-    .eq("edition_id", editionId);
-  return count || 0;
-}
-
-export async function findEditionStudent(editionId: string, identifier: string) {
-  const admin = supabaseAdmin();
-  const { data } = await admin
-    .from("edition_students")
-    .select("id")
-    .eq("edition_id", editionId)
-    .eq("identifier", identifier)
-    .maybeSingle();
-  return data;
-}
-
-export async function registerEditionStudent(
-  editionId: string,
-  identifier: string,
-  displayName: string
-) {
-  const admin = supabaseAdmin();
-  const { error } = await admin
-    .from("edition_students")
-    .upsert(
-      { edition_id: editionId, identifier, display_name: displayName },
-      { onConflict: "edition_id,identifier", ignoreDuplicates: true }
-    );
-  if (error) throw new Error(error.message);
+    .select(STUDENT_COLUMNS)
+    .eq("edition_id", id)
+    .order("display_name", { ascending: true });
+  return { ...data, students: (students as EditionStudent[]) || [] } as CourseEdition;
 }
 
 export async function createEdition(fields: {
   courseId: string;
   label: string;
-  accessCode: string;
   startDate: string;
   endDate: string;
   maxStudents: number;
@@ -168,18 +131,17 @@ export async function createEdition(fields: {
     .insert({
       course_id: fields.courseId,
       label: fields.label,
-      access_code: fields.accessCode,
       start_date: fields.startDate,
       end_date: fields.endDate,
       max_students: fields.maxStudents,
     })
-    .select("id, course_id, label, access_code, start_date, end_date, max_students, created_at")
+    .select(EDITION_COLUMNS)
     .single();
 
   if (error || !data) {
-    throw new Error(error?.message || "No se ha podido crear la edición.");
+    throw new Error(error?.message || "No se ha podido crear la sesión.");
   }
-  return data as CourseEdition;
+  return { ...data, students: [] } as CourseEdition;
 }
 
 export async function updateEditionDates(
@@ -201,4 +163,95 @@ export async function deleteEdition(editionId: string): Promise<void> {
   const admin = supabaseAdmin();
   const { error } = await admin.from("course_editions").delete().eq("id", editionId);
   if (error) throw new Error(error.message);
+}
+
+const UNIQUE_VIOLATION = "23505";
+const MAX_CODE_ATTEMPTS = 6;
+
+export class CapacityError extends Error {}
+
+/** Da de alta a un alumno en una sesión y le asigna un código de acceso propio. */
+export async function addStudent(editionId: string, displayName: string): Promise<EditionStudent> {
+  const admin = supabaseAdmin();
+
+  const edition = await getEditionById(editionId);
+  if (!edition) throw new Error("La sesión no existe.");
+  if (edition.students.length >= edition.max_students) {
+    throw new CapacityError("Se ha alcanzado el aforo máximo de esta sesión.");
+  }
+
+  for (let attempt = 0; attempt < MAX_CODE_ATTEMPTS; attempt++) {
+    const { data, error } = await admin
+      .from("edition_students")
+      .insert({ edition_id: editionId, display_name: displayName, access_code: generateAccessCode() })
+      .select(STUDENT_COLUMNS)
+      .single();
+
+    if (!error) return data as EditionStudent;
+    if (error.code !== UNIQUE_VIOLATION) throw new Error(error.message);
+  }
+  throw new Error("No se ha podido generar un código único, inténtalo de nuevo.");
+}
+
+/** Da de baja a un alumno: pierde el acceso al instante. */
+export async function removeStudent(studentId: string): Promise<void> {
+  const admin = supabaseAdmin();
+  const { error } = await admin.from("edition_students").delete().eq("id", studentId);
+  if (error) throw new Error(error.message);
+}
+
+/** Genera un código nuevo para un alumno (p. ej. si ha perdido el suyo). */
+export async function regenerateStudentCode(studentId: string): Promise<EditionStudent> {
+  const admin = supabaseAdmin();
+  for (let attempt = 0; attempt < MAX_CODE_ATTEMPTS; attempt++) {
+    const { data, error } = await admin
+      .from("edition_students")
+      .update({ access_code: generateAccessCode() })
+      .eq("id", studentId)
+      .select(STUDENT_COLUMNS)
+      .single();
+
+    if (!error) return data as EditionStudent;
+    if (error.code !== UNIQUE_VIOLATION) throw new Error(error.message);
+  }
+  throw new Error("No se ha podido generar un código único, inténtalo de nuevo.");
+}
+
+export async function touchStudentLogin(studentId: string): Promise<void> {
+  const admin = supabaseAdmin();
+  await admin.from("edition_students").update({ last_login_at: new Date().toISOString() }).eq("id", studentId);
+}
+
+export interface StudentAccessLookup {
+  studentId: string;
+  displayName: string;
+  editionId: string;
+  courseId: string;
+  startDate: string;
+  endDate: string;
+}
+
+/** Busca un alumno por su código de acceso individual, con los datos de su sesión. */
+export async function getStudentByAccessCode(code: string): Promise<StudentAccessLookup | null> {
+  const admin = supabaseAdmin();
+  const { data } = await admin
+    .from("edition_students")
+    .select(
+      "id, display_name, edition_id, course_editions!inner(id, course_id, start_date, end_date)"
+    )
+    .eq("access_code", code)
+    .maybeSingle();
+
+  if (!data) return null;
+  const edition = Array.isArray(data.course_editions) ? data.course_editions[0] : data.course_editions;
+  if (!edition) return null;
+
+  return {
+    studentId: data.id,
+    displayName: data.display_name,
+    editionId: data.edition_id,
+    courseId: edition.course_id,
+    startDate: edition.start_date,
+    endDate: edition.end_date,
+  };
 }

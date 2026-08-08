@@ -35,11 +35,13 @@ export async function verifyStudentSession(
     if (
       typeof payload.editionId === "string" &&
       typeof payload.courseId === "string" &&
+      typeof payload.studentId === "string" &&
       typeof payload.name === "string"
     ) {
       return {
         editionId: payload.editionId,
         courseId: payload.courseId,
+        studentId: payload.studentId,
         name: payload.name,
       };
     }
