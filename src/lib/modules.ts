@@ -337,12 +337,29 @@ Vídeo 4 — Simulacro Doble Ciego (Evaluación Final): integra todo lo aprendid
  * las cuatro palabras, según cómo organice el instructor ese curso). El
  * "(?!\.\d)" evita confundir un encabezado real ("Capítulo 1") con un
  * subapartado numerado como "Capítulo 1.1".
+ *
+ * El texto extraído de un PDF marca sus títulos reales con "# " (letra
+ * grande) y sus subtítulos con "## " (letra mediana) — ver
+ * pdf-extract-client.ts. Para no confundir un título real con una simple
+ * mención de pasada dentro de un párrafo (p. ej. "...consulta lo visto en
+ * el Módulo 3." o "Práctica grabada del Módulo 4", o una entrada del
+ * índice), cuando el texto tiene alguna de esas marcas (viene de un PDF)
+ * SOLO cuenta como módulo nuevo una línea marcada como título grande
+ * ("# "). Si el texto no tiene ninguna marca (pegado a mano, sin extraer
+ * de PDF), no hay forma de distinguir un título real de una mención suelta
+ * por el tamaño de letra, así que se sigue aceptando cualquier línea que
+ * empiece directamente por la palabra clave, como antes.
  */
-const HEADING_SOURCE = "^\\s*#{0,3}\\s*(?:M[ÓO]DULO|CAP[ÍI]TULO|TEMA|UNIDAD)\\s+\\d+(?!\\.\\d).*$";
-const MODULE_SPLIT_REGEX = new RegExp(`(${HEADING_SOURCE})`, "gim");
-const MODULE_TEST_REGEX = new RegExp(HEADING_SOURCE, "im");
+const KEYWORD = "(?:M[ÓO]DULO|CAP[ÍI]TULO|TEMA|UNIDAD)";
+const MARKED_HEADING_SOURCE = `^# \\s*${KEYWORD}\\s+\\d+(?!\\.\\d).*$`;
+const PLAIN_HEADING_SOURCE = `^\\s*${KEYWORD}\\s+\\d+(?!\\.\\d).*$`;
+const HAS_ANY_HEADING_MARK = /^#{1,2} /m;
 
 export function parseModules(text: string): CourseModule[] {
+  const source = HAS_ANY_HEADING_MARK.test(text) ? MARKED_HEADING_SOURCE : PLAIN_HEADING_SOURCE;
+  const MODULE_SPLIT_REGEX = new RegExp(`(${source})`, "gim");
+  const MODULE_TEST_REGEX = new RegExp(source, "im");
+
   const parts = text.split(MODULE_SPLIT_REGEX).filter((p) => p.trim().length > 0);
   const modules: { title: string; content: string }[] = [];
   for (let i = 0; i < parts.length; i++) {
