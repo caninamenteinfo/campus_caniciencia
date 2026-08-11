@@ -64,7 +64,8 @@ export function DashboardHome({
                 </div>
                 <div>
                   <p className="text-black font-semibold text-sm leading-snug">
-                    {m.title.replace(/^(?:M[ÓO]DULO|CAP[ÍI]TULO|TEMA|UNIDAD)\s+\d+\s*[:—-]?\s*/i, "") || m.title}
+                    {m.title.replace(/^#{0,3}\s*(?:M[ÓO]DULO|CAP[ÍI]TULO|TEMA|UNIDAD)\s+\d+\s*[:—-]?\s*/i, "") ||
+                      m.title}
                   </p>
                   {isActive && <p className="text-blue-600 text-xs mt-0.5">Módulo activo ahora</p>}
                 </div>

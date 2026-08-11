@@ -338,7 +338,7 @@ Vídeo 4 — Simulacro Doble Ciego (Evaluación Final): integra todo lo aprendid
  * "(?!\.\d)" evita confundir un encabezado real ("Capítulo 1") con un
  * subapartado numerado como "Capítulo 1.1".
  */
-const HEADING_SOURCE = "^\\s*(?:M[ÓO]DULO|CAP[ÍI]TULO|TEMA|UNIDAD)\\s+\\d+(?!\\.\\d).*$";
+const HEADING_SOURCE = "^\\s*#{0,3}\\s*(?:M[ÓO]DULO|CAP[ÍI]TULO|TEMA|UNIDAD)\\s+\\d+(?!\\.\\d).*$";
 const MODULE_SPLIT_REGEX = new RegExp(`(${HEADING_SOURCE})`, "gim");
 const MODULE_TEST_REGEX = new RegExp(HEADING_SOURCE, "im");
 

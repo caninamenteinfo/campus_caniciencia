@@ -43,6 +43,20 @@ export function MaterialView({
         style={{ maxHeight: "60vh" }}
       >
         {paragraphs.map((p, i) => {
+          if (p.startsWith("# ")) {
+            return (
+              <p key={i} className="text-blue-700 font-bold text-xl pt-3 font-heading">
+                {p.slice(2)}
+              </p>
+            );
+          }
+          if (p.startsWith("## ")) {
+            return (
+              <p key={i} className="text-blue-700 font-semibold text-lg pt-2 font-heading">
+                {p.slice(3)}
+              </p>
+            );
+          }
           const isHeading = /^Cap[ií]tulo/i.test(p) || /^M[ÓO]DULO/i.test(p);
           return (
             <p

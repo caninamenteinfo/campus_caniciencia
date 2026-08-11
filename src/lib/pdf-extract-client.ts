@@ -4,21 +4,83 @@
 
 import type { TextItem } from "pdfjs-dist/types/src/display/api";
 
-/** Une los fragmentos de texto de una página respetando los saltos de línea reales del PDF. */
-function joinPageText(items: TextItem[]): string {
-  let pageText = "";
-  let currentLine = "";
+interface PdfLine {
+  text: string;
+  height: number;
+}
+
+/**
+ * Un guion justo al final de una línea, precedido de una minúscula, casi
+ * siempre es un corte de palabra por ajuste de línea del PDF (p. ej.
+ * "adiestra-" al final de renglón y "miento" al principio del siguiente),
+ * no un guion real del texto. En ese caso se une la palabra sin guion ni
+ * salto de línea en vez de dejarla partida.
+ */
+function endsWithLineWrapHyphen(line: string): boolean {
+  return /\p{Ll}-$/u.test(line);
+}
+
+/** Reconstruye las líneas de una página, con el tamaño de letra de cada una. */
+function buildPageLines(items: TextItem[]): PdfLine[] {
+  const lines: PdfLine[] = [];
+  let current = "";
+  let lineHeight: number | null = null;
+
   for (const item of items) {
-    currentLine += item.str;
+    if (lineHeight === null) lineHeight = item.height || 0;
+    current += item.str;
     if (item.hasEOL) {
-      pageText += currentLine.trimEnd() + "\n";
-      currentLine = "";
+      const trimmed = current.trimEnd();
+      if (endsWithLineWrapHyphen(trimmed)) {
+        // La palabra continúa en la siguiente línea visual: no cerramos línea todavía.
+        current = trimmed.slice(0, -1);
+        continue;
+      }
+      lines.push({ text: trimmed, height: lineHeight ?? 0 });
+      current = "";
+      lineHeight = null;
     } else {
-      currentLine += " ";
+      current += " ";
     }
   }
-  if (currentLine.trim()) pageText += currentLine.trimEnd() + "\n";
-  return pageText;
+  if (current.trim()) lines.push({ text: current.trim(), height: lineHeight ?? 0 });
+  return lines;
+}
+
+/** El tamaño de letra más frecuente del documento = el del texto de cuerpo normal. */
+function computeBodyHeight(lines: PdfLine[]): number {
+  const counts = new Map<number, number>();
+  for (const line of lines) {
+    if (!line.text.trim() || !line.height) continue;
+    const rounded = Math.round(line.height * 2) / 2;
+    counts.set(rounded, (counts.get(rounded) || 0) + 1);
+  }
+  let mode = 0;
+  let modeCount = 0;
+  for (const [height, count] of counts) {
+    if (count > modeCount) {
+      mode = height;
+      modeCount = count;
+    }
+  }
+  return mode || 1;
+}
+
+/**
+ * Marca como título ("# ") o subtítulo ("## ") las líneas cuya letra es
+ * notablemente más grande que el cuerpo de texto normal del documento, para
+ * que la app pueda mostrarlas con un estilo distinto en vez de tratarlas
+ * como un párrafo más.
+ */
+function linesToMarkedText(lines: PdfLine[], bodyHeight: number): string {
+  let text = "";
+  for (const line of lines) {
+    if (!line.text.trim()) continue;
+    const ratio = line.height / bodyHeight;
+    const prefix = ratio >= 1.45 ? "# " : ratio >= 1.15 ? "## " : "";
+    text += prefix + line.text + "\n";
+  }
+  return text;
 }
 
 export async function extractPdfTextInBrowser(
@@ -31,14 +93,15 @@ export async function extractPdfTextInBrowser(
   const arrayBuffer = await file.arrayBuffer();
   const pdf = await pdfjsLib.getDocument({ data: arrayBuffer }).promise;
 
-  let fullText = "";
+  const pages: PdfLine[][] = [];
   for (let i = 1; i <= pdf.numPages; i++) {
     const page = await pdf.getPage(i);
     const content = await page.getTextContent();
     const items = content.items.filter((item): item is TextItem => "str" in item);
-    fullText += joinPageText(items) + "\n";
+    pages.push(buildPageLines(items));
     onProgress?.(i, pdf.numPages);
   }
 
-  return fullText;
+  const bodyHeight = computeBodyHeight(pages.flat());
+  return pages.map((lines) => linesToMarkedText(lines, bodyHeight)).join("\n");
 }
