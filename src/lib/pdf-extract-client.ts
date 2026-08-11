@@ -20,27 +20,52 @@ function endsWithLineWrapHyphen(line: string): boolean {
   return /\p{Ll}-$/u.test(line);
 }
 
+/**
+ * Algunas fuentes dibujan combinaciones de letras como "fi" o "fl" como un
+ * único símbolo (ligadura tipográfica), y el PDF las guarda como un
+ * fragmento de texto aparte del resto de la palabra. Si uniéramos siempre
+ * los fragmentos con un espacio, palabras como "confiar" o "identifica"
+ * saldrían partidas ("con fi ar", "identi fi ca"). Para saber si dos
+ * fragmentos van pegados o separados de verdad, comparamos su posición
+ * horizontal real en la página: solo hay espacio si hay un hueco visible
+ * entre donde termina uno y empieza el siguiente.
+ */
+function needsSpaceBetween(prev: TextItem, curr: TextItem): boolean {
+  const prevEndX = prev.transform[4] + prev.width;
+  const currStartX = curr.transform[4];
+  const gap = currStartX - prevEndX;
+  const refHeight = curr.height || prev.height || 10;
+  return gap > refHeight * 0.15;
+}
+
 /** Reconstruye las líneas de una página, con el tamaño de letra de cada una. */
 function buildPageLines(items: TextItem[]): PdfLine[] {
   const lines: PdfLine[] = [];
   let current = "";
   let lineHeight: number | null = null;
+  let prevItemInLine: TextItem | null = null;
 
   for (const item of items) {
     if (lineHeight === null) lineHeight = item.height || 0;
+    if (prevItemInLine && needsSpaceBetween(prevItemInLine, item)) {
+      current += " ";
+    }
     current += item.str;
+
     if (item.hasEOL) {
       const trimmed = current.trimEnd();
       if (endsWithLineWrapHyphen(trimmed)) {
         // La palabra continúa en la siguiente línea visual: no cerramos línea todavía.
         current = trimmed.slice(0, -1);
+        prevItemInLine = null;
         continue;
       }
       lines.push({ text: trimmed, height: lineHeight ?? 0 });
       current = "";
       lineHeight = null;
+      prevItemInLine = null;
     } else {
-      current += " ";
+      prevItemInLine = item;
     }
   }
   if (current.trim()) lines.push({ text: current.trim(), height: lineHeight ?? 0 });
