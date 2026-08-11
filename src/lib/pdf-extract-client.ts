@@ -91,21 +91,101 @@ function computeBodyHeight(lines: PdfLine[]): number {
   return mode || 1;
 }
 
+type HeadingLevel = "" | "# " | "## ";
+
+function headingLevel(line: PdfLine, bodyHeight: number): HeadingLevel {
+  const ratio = line.height / bodyHeight;
+  return ratio >= 1.45 ? "# " : ratio >= 1.15 ? "## " : "";
+}
+
 /**
  * Marca como título ("# ") o subtítulo ("## ") las líneas cuya letra es
  * notablemente más grande que el cuerpo de texto normal del documento, para
  * que la app pueda mostrarlas con un estilo distinto en vez de tratarlas
- * como un párrafo más.
+ * como un párrafo más. Cuando un título largo ocupa dos líneas del PDF
+ * (mismo tamaño de letra en ambas, una justo detrás de la otra), se unen en
+ * un único título en vez de quedar partido en dos.
  */
 function linesToMarkedText(lines: PdfLine[], bodyHeight: number): string {
+  const nonEmpty = lines.filter((l) => l.text.trim());
   let text = "";
-  for (const line of lines) {
-    if (!line.text.trim()) continue;
-    const ratio = line.height / bodyHeight;
-    const prefix = ratio >= 1.45 ? "# " : ratio >= 1.15 ? "## " : "";
-    text += prefix + line.text + "\n";
+  let i = 0;
+  while (i < nonEmpty.length) {
+    const level = headingLevel(nonEmpty[i], bodyHeight);
+    if (level) {
+      let merged = nonEmpty[i].text;
+      let j = i + 1;
+      while (j < nonEmpty.length && headingLevel(nonEmpty[j], bodyHeight) === level) {
+        merged += " " + nonEmpty[j].text;
+        j++;
+      }
+      text += level + merged + "\n";
+      i = j;
+    } else {
+      text += nonEmpty[i].text + "\n";
+      i++;
+    }
   }
   return text;
+}
+
+/**
+ * Los encabezados/pies de página (nombre del curso, autor, número de
+ * página...) se repiten casi igual en la primera o última línea de la
+ * mayoría de páginas del PDF. Se detectan por esa repetición y se
+ * eliminan, para que no aparezcan mezclados con el contenido real en cada
+ * página. Los números de página se ignoran al comparar (para que "Página 3"
+ * y "Página 4" cuenten como el mismo patrón repetido).
+ */
+function stripRunningHeadersFooters(pages: PdfLine[][]): PdfLine[][] {
+  if (pages.length < 3) return pages;
+
+  const normalize = (s: string) => s.trim().replace(/\d+/g, "#").toLowerCase();
+
+  const edgeIndexes = pages.map((page) => {
+    let first = -1;
+    let last = -1;
+    for (let i = 0; i < page.length; i++) {
+      if (!page[i].text.trim()) continue;
+      if (first === -1) first = i;
+      last = i;
+    }
+    return { first, last };
+  });
+
+  const headerCounts = new Map<string, number>();
+  const footerCounts = new Map<string, number>();
+  pages.forEach((page, pageIdx) => {
+    const { first, last } = edgeIndexes[pageIdx];
+    if (first !== -1) {
+      const key = normalize(page[first].text);
+      headerCounts.set(key, (headerCounts.get(key) || 0) + 1);
+    }
+    if (last !== -1 && last !== first) {
+      const key = normalize(page[last].text);
+      footerCounts.set(key, (footerCounts.get(key) || 0) + 1);
+    }
+  });
+
+  const threshold = Math.max(3, Math.ceil(pages.length * 0.4));
+  const repeatedHeaders = new Set(
+    [...headerCounts].filter(([, count]) => count >= threshold).map(([key]) => key)
+  );
+  const repeatedFooters = new Set(
+    [...footerCounts].filter(([, count]) => count >= threshold).map(([key]) => key)
+  );
+  if (repeatedHeaders.size === 0 && repeatedFooters.size === 0) return pages;
+
+  return pages.map((page, pageIdx) => {
+    const { first, last } = edgeIndexes[pageIdx];
+    return page.filter((line, idx) => {
+      if (!line.text.trim()) return true;
+      const key = normalize(line.text);
+      if (idx === first && repeatedHeaders.has(key)) return false;
+      if (idx === last && repeatedFooters.has(key)) return false;
+      return true;
+    });
+  });
 }
 
 export async function extractPdfTextInBrowser(
@@ -127,6 +207,7 @@ export async function extractPdfTextInBrowser(
     onProgress?.(i, pdf.numPages);
   }
 
-  const bodyHeight = computeBodyHeight(pages.flat());
-  return pages.map((lines) => linesToMarkedText(lines, bodyHeight)).join("\n");
+  const cleanedPages = stripRunningHeadersFooters(pages);
+  const bodyHeight = computeBodyHeight(cleanedPages.flat());
+  return cleanedPages.map((lines) => linesToMarkedText(lines, bodyHeight)).join("\n");
 }
