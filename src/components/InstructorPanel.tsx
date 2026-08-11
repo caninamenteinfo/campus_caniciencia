@@ -21,10 +21,13 @@ import {
   RotateCw,
   XCircle,
   Clock,
+  Eye,
+  EyeOff,
 } from "lucide-react";
 import { supabaseBrowser } from "@/lib/supabase/browser";
 import { extractPdfTextInBrowser } from "@/lib/pdf-extract-client";
 import { parseModules } from "@/lib/modules";
+import { MaterialParagraphs } from "@/components/MaterialParagraphs";
 import type { Course, CourseEdition, EditionStudent } from "@/types";
 
 type Tab = "material" | "ediciones";
@@ -115,6 +118,7 @@ function MaterialTab({ course }: { course: Course }) {
   const [uploadProgress, setUploadProgress] = useState<string | null>(null);
   const [uploadError, setUploadError] = useState<string | null>(null);
   const [dragOver, setDragOver] = useState(false);
+  const [showPreview, setShowPreview] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
   const moduleCount = parseModules(draft).length;
@@ -257,14 +261,34 @@ function MaterialTab({ course }: { course: Course }) {
       </div>
 
       <div className="bg-white rounded-2xl border border-gray-200 p-5">
-        <p className="text-black font-semibold text-sm mb-2">O pega/edita el texto manualmente</p>
-        <textarea
-          value={draft}
-          onChange={(e) => setDraft(e.target.value)}
-          rows={12}
-          className="w-full bg-white border border-gray-300 rounded-xl p-4 text-sm text-gray-800 leading-relaxed outline-none focus:border-blue-600"
-          placeholder="Pega aquí el temario, módulo o texto del curso…"
-        />
+        <div className="flex items-center justify-between mb-2">
+          <p className="text-black font-semibold text-sm">O pega/edita el texto manualmente</p>
+          <button
+            onClick={() => setShowPreview((v) => !v)}
+            className="flex items-center gap-1.5 text-blue-600 text-xs font-medium"
+          >
+            {showPreview ? <EyeOff size={13} /> : <Eye size={13} />}
+            {showPreview ? "Ver texto sin formato" : "Vista previa (cómo lo verá el alumno)"}
+          </button>
+        </div>
+
+        {showPreview ? (
+          <div
+            className="bg-white border border-gray-200 rounded-xl p-4 md:p-6 space-y-3 overflow-y-auto"
+            style={{ maxHeight: "50vh" }}
+          >
+            <MaterialParagraphs content={draft} />
+          </div>
+        ) : (
+          <textarea
+            value={draft}
+            onChange={(e) => setDraft(e.target.value)}
+            rows={12}
+            className="w-full bg-white border border-gray-300 rounded-xl p-4 text-sm text-gray-800 leading-relaxed outline-none focus:border-blue-600"
+            placeholder="Pega aquí el temario, módulo o texto del curso…"
+          />
+        )}
+
         <div className="flex items-center gap-3 mt-4">
           <button
             onClick={saveMaterial}

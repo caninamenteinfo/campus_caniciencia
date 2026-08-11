@@ -1,6 +1,7 @@
 "use client";
 
 import type { CourseModule } from "@/types";
+import { MaterialParagraphs } from "@/components/MaterialParagraphs";
 
 export function MaterialView({
   modules,
@@ -12,7 +13,6 @@ export function MaterialView({
   setActiveModuleId: (id: number) => void;
 }) {
   const activeModule = modules.find((m) => m.id === activeModuleId) || modules[0];
-  const paragraphs = activeModule.content.split("\n").filter((p) => p.trim().length > 0);
 
   return (
     <div className="p-6 md:p-10 max-w-3xl">
@@ -42,35 +42,7 @@ export function MaterialView({
         className="bg-white rounded-2xl border border-gray-200 p-6 md:p-8 space-y-4 overflow-y-auto"
         style={{ maxHeight: "60vh" }}
       >
-        {paragraphs.map((p, i) => {
-          if (p.startsWith("# ")) {
-            return (
-              <p key={i} className="text-blue-700 font-bold text-xl pt-3 font-heading">
-                {p.slice(2)}
-              </p>
-            );
-          }
-          if (p.startsWith("## ")) {
-            return (
-              <p key={i} className="text-blue-700 font-semibold text-lg pt-2 font-heading">
-                {p.slice(3)}
-              </p>
-            );
-          }
-          const isHeading = /^Cap[ií]tulo/i.test(p) || /^M[ÓO]DULO/i.test(p);
-          return (
-            <p
-              key={i}
-              className={
-                isHeading
-                  ? "text-blue-700 font-semibold text-lg pt-2 font-heading"
-                  : "text-gray-800 text-base leading-relaxed"
-              }
-            >
-              {p}
-            </p>
-          );
-        })}
+        <MaterialParagraphs content={activeModule.content} />
       </div>
     </div>
   );
