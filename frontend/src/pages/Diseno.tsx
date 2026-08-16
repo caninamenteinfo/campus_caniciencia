@@ -86,6 +86,7 @@ function DesignCard({ reel, onUpdate }: { reel: Reel; onUpdate: (r: Reel) => voi
     try {
       const r = await api.post<{ reel: Reel }>("/api/canva/export", { reel_id: reel.id, format: "mp4" });
       onUpdate(r.reel);
+      celebrate("step");
     } catch (e) {
       setError(e instanceof ApiError ? e.message : "No se pudo exportar el video.");
     } finally {

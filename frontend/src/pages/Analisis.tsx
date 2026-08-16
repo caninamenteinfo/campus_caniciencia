@@ -2,9 +2,10 @@ import { useEffect, useState } from "react";
 import { CheckCircle2, Lightbulb, ThumbsDown, ThumbsUp } from "lucide-react";
 import { api } from "../lib/api";
 import { useCurrentCycle } from "../hooks/useCurrentCycle";
-import type { Reel, WeeklyMetric } from "../lib/types";
+import type { BadgeUnlockResult, CycleSummary, Profile, Reel, WeeklyMetric } from "../lib/types";
 import { Loader } from "../components/Loader";
-import { celebrate } from "../lib/celebrate";
+import { CelebrationModal } from "../components/CelebrationModal";
+import { BadgeGrid } from "../components/BadgeGrid";
 
 interface Feedback {
   notes: string | null;
@@ -30,6 +31,10 @@ export function Analisis() {
   const [notes, setNotes] = useState("");
   const [savingMetric, setSavingMetric] = useState<string | null>(null);
   const [closing, setClosing] = useState(false);
+  const [celebration, setCelebration] = useState<{ gamification: BadgeUnlockResult; totals: CycleSummary["totals"] } | null>(
+    null
+  );
+  const [profile, setProfile] = useState<Profile | null>(null);
 
   useEffect(() => {
     if (!cycle) return;
@@ -38,6 +43,7 @@ export function Analisis() {
       setFeedback(r.feedback);
       setNotes(r.feedback?.notes ?? "");
     });
+    api.get<CycleSummary>(`/api/cycles/${cycle.id}/summary`).then((r) => setProfile(r.profile));
   }, [cycle]);
 
   if (loading || !cycle) return <Loader />;
@@ -70,9 +76,16 @@ export function Analisis() {
     if (!cycle) return;
     setClosing(true);
     try {
-      await api.patch(`/api/cycles/${cycle.id}`, { flow_step: 5, status: "closed" });
-      celebrate("week");
+      const r = await api.patch<{ gamification: BadgeUnlockResult | null }>(`/api/cycles/${cycle.id}`, {
+        flow_step: 5,
+        status: "closed",
+      });
+      const summary = await api.get<CycleSummary>(`/api/cycles/${cycle.id}/summary`);
       await reload();
+      setProfile(summary.profile);
+      if (r.gamification) {
+        setCelebration({ gamification: r.gamification, totals: summary.totals });
+      }
     } finally {
       setClosing(false);
     }
@@ -142,6 +155,11 @@ export function Analisis() {
         </button>
       </section>
 
+      <section className="card space-y-3 p-5">
+        <h2 className="font-display text-base">Badges</h2>
+        <BadgeGrid unlocked={profile?.badges ?? []} />
+      </section>
+
       {feedback?.insights_good && (
         <section className="card space-y-3 p-5">
           <h2 className="font-display text-base">Insights automáticos</h2>
@@ -160,6 +178,16 @@ export function Analisis() {
         <p className="text-center text-sm text-brand-cyan">
           ✓ Semana cerrada. Nos vemos el lunes con propuestas nuevas.
         </p>
+      )}
+
+      {celebration && (
+        <CelebrationModal
+          open
+          onClose={() => setCelebration(null)}
+          streak={celebration.gamification.streak}
+          stats={celebration.totals}
+          newlyUnlocked={celebration.gamification.newlyUnlocked}
+        />
       )}
     </div>
   );

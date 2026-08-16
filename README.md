@@ -59,7 +59,9 @@ vez gracias a los npm workspaces del `package.json` raíz.
    tablas (`weekly_cycles`, `proposals`, `reels`, `weekly_metrics`,
    `weekly_feedback`, `integration_tokens`, `push_subscriptions`,
    `profiles`), sus políticas de Row Level Security y el trigger que crea
-   el `profile` automáticamente al primer login.
+   el `profile` automáticamente al primer login. Repetí el mismo paso con
+   `supabase/migrations/0002_reel_category_badges.sql` (agrega la columna
+   `category` a `reels`, usada por el sistema de badges).
 3. Andá a **Project Settings → API** y copiá estos tres valores (los vas a
    necesitar en el paso 5):
    - `Project URL` → `SUPABASE_URL` / `VITE_SUPABASE_URL`
@@ -294,6 +296,35 @@ npm run dev:frontend   # http://localhost:3000
 4. **Cerrar semana** en Análisis: cargás métricas por reel, Claude genera
    insights (qué funcionó / qué no / recomendación), y al cerrar sumás
    racha + badges.
+
+---
+
+## Gamificación
+
+- **Racha visual**: banner arriba del Dashboard con "🔥 N semanas seguidas"
+  y una barra de progreso hacia la próxima semana.
+- **Indicador de paso**: "Paso X/4" siempre visible en el sidebar/header
+  mientras dura el flujo obligatorio.
+- **8 badges desbloqueables** (`frontend/src/lib/badges.ts` /
+  `backend/src/lib/badges.ts`), evaluados al cerrar cada semana:
+
+  | Badge | Condición |
+  |---|---|
+  | ⚡ Productor Rápido | Flujo completo en menos de 4h 45min |
+  | 🚀 Viralidad | Un reel supera las 3,000 views |
+  | 🧠 Neurobiología Master | 10 reels de la categoría Neurobiología |
+  | 💬 Comentarista | Un reel supera los 50 comentarios |
+  | 🔥 Streak 4 Semanas | 4 semanas seguidas completando el flujo |
+  | 🎬 Director | 10 reels producidos en total |
+  | 🔮 Visionario | 3 reels de la categoría Transformacional |
+  | 👑 Leyenda | Los 7 badges anteriores desbloqueados |
+
+- **Celebración post-semana**: al cerrar la semana en Análisis se abre una
+  pantalla con confetti + sonido (sintetizado con Web Audio, sin archivos
+  de audio) + los badges nuevos + los totales de la semana.
+- **Sistema anti-escape**: pasos bloqueados en orden (`FlowGuard`, con
+  aviso amarillo si intentás saltear), auto-guardado cada 10 segundos en
+  Captions, e indicador de paso siempre visible.
 
 ---
 

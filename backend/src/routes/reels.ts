@@ -32,6 +32,7 @@ reelsRouter.post("/from-proposals", requireAuth, async (req, res) => {
     order_index: i,
     title: p.hook,
     script: p.script,
+    category: p.category,
     hashtags: [],
   }));
 

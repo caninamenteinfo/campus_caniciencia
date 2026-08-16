@@ -3,7 +3,7 @@ import { useNavigate } from "react-router-dom";
 import { Check, Sparkles } from "lucide-react";
 import { api } from "../lib/api";
 import { useCurrentCycle } from "../hooks/useCurrentCycle";
-import { useDebouncedEffect } from "../hooks/useDebouncedEffect";
+import { useAutoSave } from "../hooks/useAutoSave";
 import type { Reel } from "../lib/types";
 import { Loader } from "../components/Loader";
 import { FlowGuard } from "../components/FlowGuard";
@@ -89,11 +89,11 @@ function CaptionEditor({ reel, onUpdate }: { reel: Reel; onUpdate: (r: Reel) => 
     }
   }
 
-  // Auto-guardado: cualquier cambio en los campos se persiste solo, sin
-  // necesidad de tocar el botón — así nunca se pierde una idea a mitad de escritura.
-  useDebouncedEffect(() => {
+  // Auto-guardado cada 10s (sistema anti-escape): nunca se pierde una idea
+  // a mitad de escritura, sin necesidad de tocar ningún botón.
+  useAutoSave([shortCopy, longCopy, hashtags], () => {
     if (shortCopy || longCopy || hashtags) save();
-  }, [shortCopy, longCopy, hashtags]);
+  });
 
   return (
     <section className="card space-y-3 p-5">

@@ -8,6 +8,7 @@ import { Loader } from "../components/Loader";
 import { FlowGuard } from "../components/FlowGuard";
 import { Timer } from "../components/Timer";
 import { celebrate } from "../lib/celebrate";
+import { toast } from "../store/toast";
 
 const CHECKLIST = [
   { icon: Camera, label: "Cámara en trípode" },
@@ -72,6 +73,15 @@ function GrabacionBody({
   setSaving: React.Dispatch<React.SetStateAction<boolean>>;
   navigate: ReturnType<typeof useNavigate>;
 }) {
+  const noneRecordedYet = reels.length > 0 && reels.every((r) => !r.recorded);
+
+  useEffect(() => {
+    if (noneRecordedYet) {
+      toast("¿Listo para crear contenido que transforme vidas?", "success");
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
   if (reels.length === 0) {
     return (
       <div className="card mx-auto max-w-md p-8 text-center">
@@ -95,6 +105,16 @@ function GrabacionBody({
       });
       setReels((prev) => prev.map((r) => (r.id === updated.reel.id ? updated.reel : r)));
       celebrate("step");
+
+      const recordedCount = reels.filter((r) => r.recorded || r.id === reel.id).length;
+      const remaining = reels.length - recordedCount;
+      toast(
+        remaining > 0
+          ? `📹 Video ${recordedCount}/${reels.length} completo. ¡${remaining} más!`
+          : `📹 ¡Los ${reels.length} videos están grabados!`,
+        "success"
+      );
+
       if (index < reels.length - 1) {
         setIndex(index + 1);
         setChecked({});

@@ -1,6 +1,6 @@
 import { Router } from "express";
 import { requireAuth } from "../middleware/auth.js";
-import { registerCycleCompleted } from "../lib/gamification.js";
+import { evaluateAndUnlockBadges } from "../lib/gamification.js";
 
 export const cyclesRouter = Router();
 
@@ -46,14 +46,21 @@ const VALID_STATUS = ["planning", "recording", "designing", "scheduled", "live",
 
 /** Avanza el flujo de 4 pasos (0-5) y/o el estado del ciclo. */
 cyclesRouter.patch("/:id", requireAuth, async (req, res) => {
-  const { flow_step, status } = req.body as { flow_step?: number; status?: string };
+  const { flow_step, status, start_flow } = req.body as {
+    flow_step?: number;
+    status?: string;
+    /** true cuando el usuario arranca la sesión de 4 horas (ej. "Iniciar Grabación"). */
+    start_flow?: boolean;
+  };
   const patch: Record<string, unknown> = {};
 
   if (flow_step !== undefined) {
     if (flow_step < 0 || flow_step > 5) return res.status(400).json({ error: "flow_step fuera de rango." });
     patch.flow_step = flow_step;
-    if (flow_step === 1) patch.flow_started_at = new Date().toISOString();
     if (flow_step === 5) patch.flow_completed_at = new Date().toISOString();
+  }
+  if (start_flow) {
+    patch.flow_started_at = new Date().toISOString();
   }
   if (status !== undefined) {
     if (!VALID_STATUS.includes(status)) return res.status(400).json({ error: "status inválido." });
@@ -71,7 +78,7 @@ cyclesRouter.patch("/:id", requireAuth, async (req, res) => {
 
   let gamification = null;
   if (flow_step === 5) {
-    gamification = await registerCycleCompleted(req.userId!, data.week_start);
+    gamification = await evaluateAndUnlockBadges(req.userId!, data);
   }
 
   res.json({ cycle: data, gamification });

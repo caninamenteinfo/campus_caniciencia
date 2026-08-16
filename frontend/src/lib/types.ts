@@ -32,6 +32,7 @@ export interface Reel {
   order_index: number;
   title: string;
   script: string | null;
+  category: string | null;
   recorded: boolean;
   caption_short: string | null;
   caption_long: string | null;
@@ -55,7 +56,7 @@ export interface WeeklyMetric {
 export interface Profile {
   streak_count: number;
   longest_streak: number;
-  badges: string[];
+  badges: import("./badges").BadgeId[];
 }
 
 export interface CycleSummary {
@@ -64,6 +65,13 @@ export interface CycleSummary {
   totals: { views: number; shares: number; comments: number; saves: number };
   count: number;
   profile: Profile | null;
+}
+
+export interface BadgeUnlockResult {
+  streak: number;
+  longestStreak: number;
+  badges: import("./badges").BadgeId[];
+  newlyUnlocked: import("./badges").BadgeId[];
 }
 
 export interface DriveFileRef {

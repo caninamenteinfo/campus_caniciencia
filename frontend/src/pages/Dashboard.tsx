@@ -8,6 +8,7 @@ import { Loader } from "../components/Loader";
 import { ProposalCard } from "../components/ProposalCard";
 import { ProgressSteps } from "../components/ProgressSteps";
 import { Countdown } from "../components/Countdown";
+import { StreakHero } from "../components/StreakHero";
 import { celebrate } from "../lib/celebrate";
 import { useNavigate } from "react-router-dom";
 
@@ -52,7 +53,7 @@ export function Dashboard() {
     setStarting(true);
     try {
       await api.post("/api/reels/from-proposals", { cycleId: cycle!.id });
-      await api.patch(`/api/cycles/${cycle!.id}`, { flow_step: 0, status: "recording" });
+      await api.patch(`/api/cycles/${cycle!.id}`, { flow_step: 0, status: "recording", start_flow: true });
       celebrate("step");
       navigate("/grabacion");
     } finally {
@@ -62,6 +63,8 @@ export function Dashboard() {
 
   return (
     <div className="mx-auto max-w-5xl space-y-6">
+      <StreakHero profile={summary?.profile ?? null} flowStep={cycle.flow_step} />
+
       <div>
         <p className="text-sm text-white/50">
           Semana {new Date(cycle.week_start).toLocaleDateString("es-AR", { day: "2-digit", month: "long" })} –{" "}

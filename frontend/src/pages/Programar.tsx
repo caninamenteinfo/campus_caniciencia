@@ -7,6 +7,7 @@ import type { Reel } from "../lib/types";
 import { Loader } from "../components/Loader";
 import { FlowGuard } from "../components/FlowGuard";
 import { celebrate } from "../lib/celebrate";
+import { toast } from "../store/toast";
 
 const STEPS = [
   "Descargá el MP4 exportado desde Canva de cada reel.",
@@ -38,6 +39,7 @@ export function Programar() {
   async function finishWeek() {
     await api.patch(`/api/cycles/${cycle!.id}`, { flow_step: 4, status: "scheduled" });
     celebrate("week");
+    toast("🚀 La semana está en vivo!", "success");
     navigate("/analisis");
   }
 
