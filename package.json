@@ -1,33 +1,17 @@
 {
-  "name": "campus_caniciencia",
-  "version": "0.1.0",
+  "name": "caninamente-content-app",
+  "version": "1.0.0",
   "private": true,
+  "description": "CaninaMente Content Manager — cerebro operacional de contenido semanal",
+  "workspaces": [
+    "frontend",
+    "backend"
+  ],
   "scripts": {
-    "dev": "next dev",
-    "build": "next build",
-    "start": "next start",
-    "lint": "eslint"
-  },
-  "dependencies": {
-    "@supabase/ssr": "^0.12.4",
-    "@supabase/supabase-js": "^2.112.0",
-    "jose": "^6.2.7",
-    "lucide-react": "^1.28.0",
-    "nanoid": "^6.0.0",
-    "next": "16.2.12",
-    "pdfjs-dist": "^6.2.108",
-    "react": "19.2.4",
-    "react-dom": "19.2.4",
-    "server-only": "^0.0.1"
-  },
-  "devDependencies": {
-    "@tailwindcss/postcss": "^4",
-    "@types/node": "^20",
-    "@types/react": "^19",
-    "@types/react-dom": "^19",
-    "eslint": "^9",
-    "eslint-config-next": "16.2.12",
-    "tailwindcss": "^4",
-    "typescript": "^5"
+    "dev": "npm run dev --workspace=backend & npm run dev --workspace=frontend",
+    "dev:frontend": "npm run dev --workspace=frontend",
+    "dev:backend": "npm run dev --workspace=backend",
+    "build": "npm run build --workspace=backend && npm run build --workspace=frontend",
+    "lint": "npm run lint --workspace=frontend && npm run lint --workspace=backend"
   }
 }

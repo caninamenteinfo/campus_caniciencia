@@ -1,0 +1,12 @@
+{
+  "name": "CaninaMente Content Manager",
+  "short_name": "CaninaMente",
+  "description": "El cerebro operacional de contenido de CaninaMente",
+  "start_url": "/",
+  "display": "standalone",
+  "background_color": "#0a1428",
+  "theme_color": "#0a1428",
+  "icons": [
+    { "src": "/logo.svg", "sizes": "512x512", "type": "image/svg+xml" }
+  ]
+}

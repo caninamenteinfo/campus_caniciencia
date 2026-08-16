@@ -1,0 +1,50 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@layer base {
+  html,
+  body,
+  #root {
+    height: 100%;
+  }
+  body {
+    font-family: "Inter", system-ui, sans-serif;
+    background: radial-gradient(circle at 20% -10%, #182a4a 0%, #0a1428 55%);
+    min-height: 100vh;
+  }
+  h1,
+  h2,
+  h3,
+  .font-display {
+    font-family: "Montserrat", system-ui, sans-serif;
+    font-weight: 900;
+    letter-spacing: -0.02em;
+  }
+}
+
+@layer components {
+  .card {
+    @apply rounded-2xl border border-white/10 bg-white/[0.04] backdrop-blur-sm shadow-xl;
+  }
+  .btn-primary {
+    @apply inline-flex items-center justify-center gap-2 rounded-full bg-brand-orange px-6 py-3 font-display text-base text-base
+      transition hover:brightness-110 active:scale-95 disabled:opacity-40 disabled:pointer-events-none;
+  }
+  .btn-secondary {
+    @apply inline-flex items-center justify-center gap-2 rounded-full border border-white/20 bg-white/5 px-5 py-2.5 font-display text-sm text-white
+      transition hover:bg-white/10 active:scale-95 disabled:opacity-40 disabled:pointer-events-none;
+  }
+  .pill {
+    @apply rounded-full px-3 py-1 text-xs font-semibold uppercase tracking-wide;
+  }
+}
+
+::-webkit-scrollbar {
+  width: 8px;
+  height: 8px;
+}
+::-webkit-scrollbar-thumb {
+  background: rgba(255, 255, 255, 0.15);
+  border-radius: 999px;
+}
