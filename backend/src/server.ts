@@ -11,6 +11,7 @@ import { metricsRouter } from "./routes/metrics.js";
 import { feedbackRouter } from "./routes/feedback.js";
 import { canvaRouter } from "./routes/canva.js";
 import { pushRouter } from "./routes/push.js";
+import { mediaRouter } from "./routes/media.js";
 
 const app = express();
 
@@ -30,6 +31,7 @@ app.use("/api/metrics", metricsRouter);
 app.use("/api/feedback", feedbackRouter);
 app.use("/api/canva", canvaRouter);
 app.use("/api/push", pushRouter);
+app.use("/api/media", mediaRouter);
 
 app.use((_req, res) => {
   res.status(404).json({ error: "Ruta no encontrada." });
@@ -45,5 +47,10 @@ app.listen(env.port, () => {
   if (!features.claude) console.warn("⚠️  ANTHROPIC_API_KEY no configurada: propuestas/captions/insights con IA deshabilitados.");
   if (!features.canva) console.warn("⚠️  CANVA_CLIENT_ID/SECRET no configurados: integración con Canva deshabilitada.");
   if (!features.push) console.warn("⚠️  VAPID keys no configuradas: alarmas push deshabilitadas (solo log en consola).");
+  console.log(
+    features.gcs
+      ? `☁️  Videos exportados se guardan en gs://${env.gcsBucket}`
+      : `💾 Videos exportados se guardan en disco local (${env.mediaStorageDir}) — configurá GCS_BUCKET para producción.`
+  );
   startScheduler();
 });

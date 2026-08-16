@@ -34,13 +34,30 @@ export const env = {
   canvaClientId: optional("CANVA_CLIENT_ID"),
   canvaClientSecret: optional("CANVA_CLIENT_SECRET"),
   canvaRedirectUri: optional("CANVA_REDIRECT_URI") ?? "http://localhost:5000/api/canva/oauth/callback",
+  // Template por defecto/fallback cuando la categoría no matchea ninguno de los 5 de abajo.
   canvaBrandTemplateId: optional("CANVA_BRAND_TEMPLATE_ID"),
+  canvaTemplates: {
+    neurobiologia: optional("CANVA_TEMPLATE_NEUROBIOLOGIA"),
+    transformacional: optional("CANVA_TEMPLATE_TRANSFORMACIONAL"),
+    desmitificacion: optional("CANVA_TEMPLATE_DESMITIFICACION"),
+    carrusel: optional("CANVA_TEMPLATE_CARRUSEL"),
+    evento: optional("CANVA_TEMPLATE_EVENTO"),
+  },
 
   vapidPublicKey: optional("VAPID_PUBLIC_KEY"),
   vapidPrivateKey: optional("VAPID_PRIVATE_KEY"),
   vapidSubject: optional("VAPID_SUBJECT") ?? "mailto:caninamente.info@gmail.com",
 
   tokenEncryptionKey: optional("TOKEN_ENCRYPTION_KEY") ?? "dev-only-insecure-key-change-me!!",
+
+  // Almacenamiento de los MP4 exportados de Canva: por defecto disco local
+  // (server efímero — sirve para desarrollo/single-instance), o Google
+  // Cloud Storage si configurás GCS_BUCKET (reutiliza las credenciales de
+  // la service account de Google ya definidas arriba).
+  mediaStorageDir: optional("MEDIA_STORAGE_DIR") ?? "/tmp/caninamente-media",
+  gcsBucket: optional("GCS_BUCKET"),
+  gcsPrefix: optional("GCS_PREFIX") ?? "reels/",
+  googleProjectId: optional("GOOGLE_PROJECT_ID"),
 };
 
 export const features = {
@@ -48,4 +65,5 @@ export const features = {
   canva: Boolean(env.canvaClientId && env.canvaClientSecret),
   push: Boolean(env.vapidPublicKey && env.vapidPrivateKey),
   driveServiceAccount: Boolean(env.googleServiceAccountEmail && env.googleServiceAccountPrivateKey),
+  gcs: Boolean(env.gcsBucket && env.googleServiceAccountEmail && env.googleServiceAccountPrivateKey),
 };

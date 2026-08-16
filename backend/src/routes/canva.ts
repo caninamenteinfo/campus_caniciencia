@@ -2,16 +2,12 @@ import { Router } from "express";
 import { randomBytes } from "node:crypto";
 import { requireAuth } from "../middleware/auth.js";
 import { supabaseAdmin } from "../lib/supabase.js";
-import { encryptToken, decryptToken } from "../lib/crypto.js";
+import { encryptToken } from "../lib/crypto.js";
 import { env, features } from "../lib/env.js";
-import {
-  buildCanvaAuthUrl,
-  createDesignFromReel,
-  createPkcePair,
-  exchangeCanvaCode,
-  exportCanvaDesign,
-  refreshCanvaToken,
-} from "../lib/canva.js";
+import { buildCanvaAuthUrl, createPkcePair, exchangeCanvaCode } from "../lib/canva.js";
+import { isCanvaConnected } from "../lib/canvaAuth.js";
+import { exportAndPersistReel, generateDesignForReel } from "../lib/canvaDesign.js";
+import { resolveTemplateDef } from "../lib/canvaTemplates.js";
 
 export const canvaRouter = Router();
 
@@ -20,13 +16,7 @@ const pendingOAuth = new Map<string, { verifier: string; userId: string }>();
 
 canvaRouter.get("/status", requireAuth, async (req, res) => {
   if (!features.canva) return res.json({ configured: false, connected: false });
-  const { data } = await supabaseAdmin
-    .from("integration_tokens")
-    .select("id")
-    .eq("user_id", req.userId)
-    .eq("provider", "canva")
-    .maybeSingle();
-  res.json({ configured: true, connected: Boolean(data) });
+  res.json({ configured: true, connected: await isCanvaConnected(req.userId!) });
 });
 
 canvaRouter.get("/oauth/start", requireAuth, (req, res) => {
@@ -65,55 +55,22 @@ canvaRouter.get("/oauth/callback", async (req, res) => {
   }
 });
 
-async function getValidCanvaAccessToken(userId: string): Promise<string> {
-  const { data } = await supabaseAdmin
-    .from("integration_tokens")
-    .select("*")
-    .eq("user_id", userId)
-    .eq("provider", "canva")
-    .single();
+/** Devuelve qué template (de los 5 mapeados por categoría) le toca a un reel. */
+canvaRouter.get("/template-for/:reelId", requireAuth, async (req, res) => {
+  const { data: reel } = await req.db!.from("reels").select("category").eq("id", req.params.reelId).single();
+  if (!reel) return res.status(404).json({ error: "Reel no encontrado." });
+  res.json({ template: resolveTemplateDef(reel.category) });
+});
 
-  if (!data) throw new Error("Canva no está conectado. Andá a Ajustes y conectá tu cuenta.");
-
-  if (data.expires_at && new Date(data.expires_at).getTime() < Date.now() + 60_000) {
-    const refreshed = await refreshCanvaToken(decryptToken(data.refresh_token));
-    await supabaseAdmin
-      .from("integration_tokens")
-      .update({
-        access_token: encryptToken(refreshed.access_token),
-        refresh_token: encryptToken(refreshed.refresh_token),
-        expires_at: new Date(Date.now() + refreshed.expires_in * 1000).toISOString(),
-        updated_at: new Date().toISOString(),
-      })
-      .eq("user_id", userId)
-      .eq("provider", "canva");
-    return refreshed.access_token;
-  }
-
-  return decryptToken(data.access_token);
-}
-
-/** Genera el diseño en Canva (autofill de la brand template) para un reel. */
+/** Genera el diseño en Canva (autofill de la brand template mapeada por categoría) para un reel. */
 canvaRouter.post("/design", requireAuth, async (req, res) => {
   const { reel_id } = req.body as { reel_id: string };
-  if (!env.canvaBrandTemplateId) {
-    return res.status(503).json({ error: "Falta CANVA_BRAND_TEMPLATE_ID en el servidor." });
-  }
   const { data: reel } = await req.db!.from("reels").select("*").eq("id", reel_id).single();
   if (!reel) return res.status(404).json({ error: "Reel no encontrado." });
 
   try {
-    const accessToken = await getValidCanvaAccessToken(req.userId!);
-    const design = await createDesignFromReel(accessToken, env.canvaBrandTemplateId, {
-      title: { type: "text", text: reel.title },
-      hook: { type: "text", text: reel.caption_short ?? reel.title },
-    });
-    const { data: updated, error } = await req.db!
-      .from("reels")
-      .update({ canva_design_id: design.designId, status: "designed" })
-      .eq("id", reel_id)
-      .select()
-      .single();
+    const design = await generateDesignForReel(req.userId!, reel);
+    const { data: updated, error } = await req.db!.from("reels").select("*").eq("id", reel_id).single();
     if (error) return res.status(500).json({ error: error.message });
     res.json({ reel: updated, editUrl: design.editUrl, viewUrl: design.viewUrl });
   } catch (err) {
@@ -121,23 +78,17 @@ canvaRouter.post("/design", requireAuth, async (req, res) => {
   }
 });
 
-/** Exporta el diseño ya generado a MP4 (o PNG) y guarda la URL final. */
+/** Exporta el diseño ya generado a MP4 (o PNG), lo persiste y guarda la URL final. */
 canvaRouter.post("/export", requireAuth, async (req, res) => {
   const { reel_id, format = "mp4" } = req.body as { reel_id: string; format?: "mp4" | "png" };
   const { data: reel } = await req.db!.from("reels").select("*").eq("id", reel_id).single();
-  if (!reel?.canva_design_id) return res.status(400).json({ error: "El reel todavía no tiene diseño en Canva." });
+  if (!reel) return res.status(404).json({ error: "Reel no encontrado." });
 
   try {
-    const accessToken = await getValidCanvaAccessToken(req.userId!);
-    const urls = await exportCanvaDesign(accessToken, reel.canva_design_id, format);
-    const { data: updated, error } = await req.db!
-      .from("reels")
-      .update({ canva_export_url: urls[0] })
-      .eq("id", reel_id)
-      .select()
-      .single();
+    await exportAndPersistReel(req.userId!, reel, format);
+    const { data: updated, error } = await req.db!.from("reels").select("*").eq("id", reel_id).single();
     if (error) return res.status(500).json({ error: error.message });
-    res.json({ reel: updated, urls });
+    res.json({ reel: updated });
   } catch (err) {
     res.status(502).json({ error: (err as Error).message });
   }

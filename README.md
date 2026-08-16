@@ -152,19 +152,45 @@ conectar Canva pero el resto de la app funciona igual.
    backend con el mismo path).
 3. Copiá el **Client ID** y **Client Secret** → `CANVA_CLIENT_ID` /
    `CANVA_CLIENT_SECRET` en `backend/.env`.
-4. Diseñá (o adaptá) una **Brand Template** en Canva siguiendo la Guía de
-   Diseño Canva del documento MAESTRO, con dos campos de texto con estos
-   nombres exactos (son los que autocompleta el backend en
-   `backend/src/routes/canva.ts`):
-   - `title`
-   - `hook`
-5. Conseguí el **ID de esa brand template**: abrila en Canva, el ID está en
-   la URL (`https://www.canva.com/design/<ESTE-ES-EL-ID>/...`) o usando el
-   endpoint de listado de la Connect API. Copialo a
-   `CANVA_BRAND_TEMPLATE_ID`.
+4. Diseñá (o adaptá) hasta **5 Brand Templates** en Canva, uno por
+   categoría de contenido (todas **verticales, 1080×1920px**, así el MP4
+   exportado sale con esa resolución), cada una con dos campos de texto
+   con estos nombres exactos (son los que autocompleta el backend en
+   `backend/src/lib/canvaDesign.ts`): `title` y `hook`.
+
+   | Categoría (texto libre que genera Claude) | Template sugerido | Estilo |
+   |---|---|---|
+   | Neurobiología | EDUCATIVO NEUROBIOLÓGICO | Hook amarillo + imagen central |
+   | Transformacional | ANTES/DESPUÉS | Split screen naranja/cyan |
+   | Desmitificación | MITO VS REALIDAD | ❌ vs ✅ |
+   | Carrusel | EDUCATIVO | 6 slides, números grandes |
+   | Evento | MASTERCLASS | Header amarillo + fecha/hora |
+
+   El backend matchea la categoría de cada reel contra este mapeo (sin
+   distinguir tildes/mayúsculas — ver `backend/src/lib/canvaTemplates.ts`);
+   si no matchea ninguna, usa `CANVA_BRAND_TEMPLATE_ID` como fallback.
+5. Por cada template, conseguí su **ID**: abrilo en Canva, el ID está en la
+   URL (`https://www.canva.com/design/<ESTE-ES-EL-ID>/...`). Completá los
+   que tengas en `backend/.env`: `CANVA_TEMPLATE_NEUROBIOLOGIA`,
+   `CANVA_TEMPLATE_TRANSFORMACIONAL`, `CANVA_TEMPLATE_DESMITIFICACION`,
+   `CANVA_TEMPLATE_CARRUSEL`, `CANVA_TEMPLATE_EVENTO` (y
+   `CANVA_BRAND_TEMPLATE_ID` como fallback general). No hace falta tener
+   los 5 — los que falten caen al fallback.
 6. La conexión OAuth de Canva **se hace desde la app** (no acá): una vez
    arrancado el proyecto, andá a **Ajustes → Conectar con Canva** logueado
    con tu usuario.
+7. **Generación automática**: apenas guardás el copy corto + el caption
+   largo de un reel en Captions, el backend genera el diseño y exporta el
+   MP4 solo, en background (no hace falta tocar nada en Diseño — el preview
+   aparece cuando está listo). El botón "Generar diseño" en Diseño sigue
+   disponible como regenerar/fallback manual.
+8. **Dónde queda guardado el MP4**: el backend descarga el export de Canva
+   (la URL que da Canva vence) y lo guarda en disco local
+   (`MEDIA_STORAGE_DIR`, `/tmp/caninamente-media` por defecto) o en un
+   bucket de **Google Cloud Storage** si configurás `GCS_BUCKET` (reutiliza
+   la service account de Google — dale rol *Storage Object Admin* sobre el
+   bucket, y completá `GOOGLE_PROJECT_ID`). Local sirve para desarrollo;
+   para producción con más de una instancia/reinicios frecuentes, usá GCS.
 
 ---
 
@@ -238,6 +264,8 @@ Referencia rápida de qué va en cada uno:
 | `GOOGLE_SERVICE_ACCOUNT_EMAIL` / `_PRIVATE_KEY` | Paso 2.6 (opcional) |
 | `MASTER_DOC_FILE_ID` | Ya viene precargado con el fileId del documento MAESTRO real |
 | `CANVA_CLIENT_ID` / `_SECRET` / `_REDIRECT_URI` / `_BRAND_TEMPLATE_ID` | Paso 3 |
+| `CANVA_TEMPLATE_NEUROBIOLOGIA` / `_TRANSFORMACIONAL` / `_DESMITIFICACION` / `_CARRUSEL` / `_EVENTO` | Paso 3.5 (opcionales, caen al `_BRAND_TEMPLATE_ID` si faltan) |
+| `MEDIA_STORAGE_DIR` / `GCS_BUCKET` / `GCS_PREFIX` / `GOOGLE_PROJECT_ID` | Paso 3.8 (dónde se guardan los MP4 exportados) |
 | `VAPID_PUBLIC_KEY` / `_PRIVATE_KEY` / `_SUBJECT` | Paso 5 |
 | `TOKEN_ENCRYPTION_KEY` | Cualquier string aleatorio largo (ej. `openssl rand -base64 32`) — encripta los tokens de Canva guardados en la base |
 
@@ -291,8 +319,11 @@ npm run dev:frontend   # http://localhost:3000
    reels de la semana.
 3. **Flujo obligatorio de 4 pasos** (bloqueado en orden, con auto-guardado):
    Grabación (guión + checklist + timer) → Captions (copy + hashtags,
-   sugeridos por IA) → Diseño (autofill + export en Canva) → Programación
-   (checklist de Metricool).
+   sugeridos por IA — apenas los guardás, el diseño en Canva se genera y
+   exporta solo, en background, con el template que le toca a la
+   categoría del reel) → Diseño (preview del MP4 ya listo, con botones
+   Descargar / Editar en Canva — al volver de editar, se re-exporta solo)
+   → Programación (checklist de Metricool).
 4. **Cerrar semana** en Análisis: cargás métricas por reel, Claude genera
    insights (qué funcionó / qué no / recomendación), y al cerrar sumás
    racha + badges.
@@ -347,6 +378,18 @@ npm run dev:frontend   # http://localhost:3000
   abrís el frontend.
 - **`ANTHROPIC_API_KEY no está configurada`** — es un error esperado si
   todavía no completaste el paso 4; el resto de la app sigue funcionando.
+- **El preview de Diseño se queda en "Generando diseño…"** — revisá los
+  logs del backend: si dice que no hay template configurado para la
+  categoría, completá el `CANVA_TEMPLATE_*` correspondiente o al menos
+  `CANVA_BRAND_TEMPLATE_ID`. Si el problema es de conexión, confirmá en
+  Ajustes que Canva siga "Conectado" (el token pudo vencer).
+- **El video no carga / 404 en `/api/media/reels/...`** — el archivo se
+  descarga de Canva una sola vez al exportar; si se perdió (ej. reinicio
+  del server sin GCS configurado, solo con disco local efímero), tocá
+  "Actualizar preview" en Diseño para volver a exportarlo.
+- **Error subiendo a GCS** — confirmá que `GOOGLE_PROJECT_ID` esté seteado
+  y que la service account (`GOOGLE_SERVICE_ACCOUNT_EMAIL`) tenga el rol
+  *Storage Object Admin* sobre el bucket de `GCS_BUCKET`.
 
 ## Notas
 
